@@ -8,3 +8,4 @@ def get_task(name: str):
     raise ValueError(f"Unknown task: {name}")
 
 def list_tasks() -> list[str]: return ["j01_cartpole", "j02_harth"]
+
