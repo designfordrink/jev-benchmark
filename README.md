@@ -4,9 +4,13 @@ A reproducible benchmark for evaluating tiny decision models across perception, 
 
 ## Status
 
-**v0.1 — bootstrap**
+**v0.1 — first vertical slices**
 
-The first implemented task is **J01 CartPole**.
+Implemented:
+- **J01 CartPole** — control task with deterministic rule policy, tiny-model size probe, latency/confidence/fallback metrics.
+- **J02 HARTH data layer** — subject-aware streaming loader, 128×6 windows, schema validation and inspection CLI.
+
+J02 model training/evaluation is intentionally not claimed yet: the repository does not contain the raw HARTH dataset.
 
 ## Development
 
@@ -20,6 +24,20 @@ jev-bench list-tasks
 
 ```bash
 jev-bench run --task j01_cartpole --policy rule --episodes 20 --seed 0
+jev-bench sweep --task j01_cartpole --hidden-units 1,2,4,8,16,32,64 --episodes 20 --seed 0
 ```
 
-See `docs/jev-benchmark-runner-v0.1.md` for the implementation roadmap.
+## J02 HARTH
+
+The public HARTH dataset is external to this repository. After downloading a pinned release:
+
+```bash
+jev-bench harth-manifest --dataset-root /path/to/harth
+jev-bench harth-inspect --dataset-root /path/to/harth --subject S015
+```
+
+See `docs/experiment-j02-harth.md`.
+
+## Research rule
+
+A benchmark result must come from an actual runner execution. Synthetic fixtures are used only for tests of parsing, contracts and invariants; they are never presented as HARTH performance.
