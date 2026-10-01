@@ -48,7 +48,7 @@ def run_j02_loso(dataset_root, *, model: str = "tiny_mlp", hidden_units: int = 8
     task=J02Harth(); rows=[]
     for i,subject in enumerate(requested):
         rows.append(task.train_and_evaluate(dataset_root,test_subject=subject,model=model,hidden_units=hidden_units,window_size=window_size,stride=stride,max_train_windows_per_subject=max_train_windows_per_subject,max_test_windows=max_test_windows,epochs=epochs,lr=lr,batch_size=batch_size,seed=seed+i,abstain_threshold=abstain_threshold))
-    result={"task":"j02_harth","protocol":"LOSO","model":model,"hidden_units":hidden_units,"rows":rows,"aggregate":aggregate_loso(rows)}
+    result={"task":"j02_harth","protocol":"LOSO","model":model,"hidden_units":hidden_units,"seed":seed,"rows":rows,"aggregate":aggregate_loso(rows)}
     if output:
         path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(version_result(result,protocol="LOSO"),indent=2),encoding="utf-8")
     return result
@@ -76,13 +76,14 @@ def run_j02_loso_multi_seed(
     seed_list = [int(s) for s in seeds]
     if not seed_list:
         raise ValueError("At least one seed is required")
+    subject_list = None if subjects is None else list(subjects)
 
     runs = [
         run_j02_loso(
             dataset_root,
             model=model,
             hidden_units=hidden_units,
-            subjects=subjects,
+            subjects=subject_list,
             window_size=window_size,
             stride=stride,
             max_train_windows_per_subject=max_train_windows_per_subject,
@@ -102,6 +103,7 @@ def run_j02_loso_multi_seed(
         "model": model,
         "hidden_units": hidden_units,
         "seeds": seed_list,
+        "repeat_count": len(seed_list),
         "runs": runs,
         "aggregate": aggregate_multi_seed(runs),
     }
