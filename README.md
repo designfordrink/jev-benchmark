@@ -57,3 +57,15 @@ jev-bench harth-loso-sweep --dataset-root /path/to/harth --hidden-units 1,2,4,8,
 ```
 
 The LOSO summary reports per-subject results, mean/std metrics and an aggregate risk-coverage curve. The size sweep also computes the Pareto front over macro-F1, inference latency and FP32 parameter bytes.
+
+## J03 Candidate Selection
+
+The first decision-track task separates candidate generation from candidate ranking. The planner supplies legal candidates; the tiny scorer ranks them, and the evaluator measures reward, regret, confidence, latency and candidate-order invariance.
+
+```bash
+jev-bench j03-train --model tiny_mlp --hidden-units 8
+jev-bench j03-train --model linear
+jev-bench j03-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j03-sweep.json
+```
+
+See `docs/experiment-j03-candidate-selection.md`.
