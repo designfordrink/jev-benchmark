@@ -22,7 +22,7 @@ def aggregate_loso(rows: list[dict[str, Any]]) -> dict[str, Any]:
             risk.append({"threshold":float(point["threshold"]),"coverage_mean":cover,"risk_mean":risk_value})
     return {"subjects_evaluated":[r["test_subject"] for r in rows],"subject_count":len(rows),"metrics":metrics,"risk_coverage":risk}
 
-def pareto_front(rows: Iterable[dict[str, Any]], *, maximize: tuple[str,...]=( "macro_f1",), minimize: tuple[str,...]=( "mean_inference_latency_us","model_size_bytes_fp32")) -> list[dict[str, Any]]:
+def pareto_front(rows: Iterable[dict[str, Any]], *, maximize: tuple[str,...]=( "macro_f1",), minimize: tuple[str,...]=( "mean_single_window_inference_latency_us","model_size_bytes_fp32_mean")) -> list[dict[str, Any]]:
     data=list(rows); front=[]
     for candidate in data:
         dominated=False
