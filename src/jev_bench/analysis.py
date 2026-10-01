@@ -36,6 +36,15 @@ def pareto_front(rows: Iterable[dict[str, Any]], *, maximize: tuple[str,...]=( "
     return front
 
 
+def _mean_std_values(values: list[float]) -> dict[str, float]:
+    if not values:
+        return {"mean": 0.0, "std": 0.0}
+    m = sum(values) / len(values)
+    if len(values) < 2:
+        return {"mean": m, "std": 0.0}
+    return {"mean": m, "std": sqrt(sum((x - m) ** 2 for x in values) / (len(values) - 1))}
+
+
 def aggregate_multi_seed(seed_results: list[dict[str, Any]]) -> dict[str, Any]:
     """Separate training-seed variance from held-out-subject variance."""
     if not seed_results:
@@ -61,7 +70,7 @@ def aggregate_multi_seed(seed_results: list[dict[str, Any]]) -> dict[str, Any]:
         for key in row["metrics"]
     })
     seed_variance = {
-        key: mean_std([row["metrics"][key] for row in seed_summaries if key in row["metrics"]])
+        key: _mean_std_values([row["metrics"][key] for row in seed_summaries if key in row["metrics"]])
         for key in metric_keys
     }
 
@@ -78,7 +87,7 @@ def aggregate_multi_seed(seed_results: list[dict[str, Any]]) -> dict[str, Any]:
     subject_summary = {}
     for subject, metrics in sorted(per_subject.items()):
         subject_summary[subject] = {
-            key: mean_std(list(seed_values.values()))
+            key: _mean_std_values(list(seed_values.values()))
             for key, seed_values in metrics.items()
         }
 

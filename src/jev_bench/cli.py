@@ -6,6 +6,7 @@ from jev_bench.core.results import BenchmarkResult, version_result, version_swee
 from jev_bench.policies.registry import get_policy, list_policies
 from jev_bench.tasks.registry import get_task, list_tasks
 from jev_bench.sweep import run_j01_size_sweep, run_j02_size_sweep, run_j02_loso, run_j02_loso_multi_seed, run_j02_loso_size_sweep, run_j03_size_sweep
+from jev_bench.datasets.harth_hf import download_subject_files
 
 def build_parser() -> argparse.ArgumentParser:
     parser=argparse.ArgumentParser(prog="jev-bench"); sub=parser.add_subparsers(dest="command",required=True)
@@ -13,6 +14,8 @@ def build_parser() -> argparse.ArgumentParser:
     norm=sub.add_parser("normalize-result"); norm.add_argument("--input",required=True); norm.add_argument("--output"); norm.add_argument("--protocol")
     run=sub.add_parser("run"); run.add_argument("--task",required=True); run.add_argument("--policy",required=True); run.add_argument("--episodes",type=int,default=20); run.add_argument("--seed",type=int,default=0)
     sweep=sub.add_parser("sweep"); sweep.add_argument("--task",default="j01_cartpole"); sweep.add_argument("--hidden-units",default="1,2,4,8,16,32,64"); sweep.add_argument("--episodes",type=int,default=20); sweep.add_argument("--seed",type=int,default=0); sweep.add_argument("--output")
+    hd=sub.add_parser("harth-download"); hd.add_argument("--output-dir",required=True); hd.add_argument("--force",action="store_true")
+    hhf=sub.add_parser("harth-hf-download"); hhf.add_argument("--repo-id",default="High-Light/jev-harth"); hhf.add_argument("--revision",default="main"); hhf.add_argument("--output-dir",required=True); hhf.add_argument("--subjects"); hhf.add_argument("--force",action="store_true")
     manifest=sub.add_parser("harth-manifest"); manifest.add_argument("--dataset-root",required=True); manifest.add_argument("--window-size",type=int,default=128); manifest.add_argument("--stride",type=int,default=128)
     inspect=sub.add_parser("harth-inspect"); inspect.add_argument("--dataset-root",required=True); inspect.add_argument("--subject",required=True); inspect.add_argument("--window-size",type=int,default=128); inspect.add_argument("--stride",type=int,default=128); inspect.add_argument("--max-windows",type=int,default=1000)
     train=sub.add_parser("harth-train"); train.add_argument("--dataset-root",required=True); train.add_argument("--test-subject",required=True); train.add_argument("--model",choices=["tiny_mlp","nearest_centroid"],default="tiny_mlp"); train.add_argument("--hidden-units",type=int,default=8); train.add_argument("--window-size",type=int,default=128); train.add_argument("--stride",type=int,default=128); train.add_argument("--max-train-windows-per-subject",type=int,default=500); train.add_argument("--max-test-windows",type=int,default=2000); train.add_argument("--epochs",type=int,default=10); train.add_argument("--lr",type=float,default=0.01); train.add_argument("--batch-size",type=int,default=128); train.add_argument("--seed",type=int,default=0); train.add_argument("--abstain-threshold",type=float,default=0.0); train.add_argument("--model-output"); train.add_argument("--output")
@@ -55,6 +58,13 @@ def main()->int:
         units=[int(x.strip()) for x in args.hidden_units.split(",") if x.strip()]
         if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
         rows=run_j01_size_sweep(units,episodes=args.episodes,seed=args.seed,output=None); _write_json(version_sweep(task="j01_cartpole",protocol="size-sweep",rows=rows,metadata={"episodes":args.episodes,"seed":args.seed}),args.output); return 0
+    if args.command=="harth-download":
+        from jev_bench.datasets.harth_download import download_harth
+        _write_json(download_harth(args.output_dir, force=args.force), None); return 0
+    if args.command=="harth-hf-download":
+        subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None
+        result=download_subject_files(args.repo_id,args.output_dir,subjects=subjects,revision=args.revision,force=args.force)
+        _write_json(result,None); return 0
     if args.command=="harth-manifest":
         print(json.dumps(get_task("j02_harth").evaluate_manifest(args.dataset_root,window_size=args.window_size,stride=args.stride),indent=2)); return 0
     if args.command=="harth-inspect":
