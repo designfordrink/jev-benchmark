@@ -62,9 +62,10 @@ class J04Tetris:
                 for trial in range(permutation_trials):
                     rng=np.random.default_rng(seed+500000+ep*1000+env.pieces*10+trial); perm=rng.permutation(len(legal)); shuffled=[legal[int(i)] for i in perm]; sh_idx,_,_=selector.rank(context,shuffled)
                     permutation_hits+=int(shuffled[sh_idx].candidate_id==chosen.candidate_id); permutation_total+=1
-                _,_,done,_=env.step(chosen)
+                _,_,done,info=env.step(chosen)
+                episode_lines += int(info["lines_cleared"])
                 if done: break
-            returns.append(env.score); lines.append(int(sum([])) if False else env.last_lines); pieces.append(env.pieces)
+            returns.append(env.score); total_lines.append(episode_lines); pieces.append(env.pieces)
         return {
             "task":self.name,
             "episodes":episodes,
