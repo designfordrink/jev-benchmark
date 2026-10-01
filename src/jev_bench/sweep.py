@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Iterable
 
+from jev_bench.core.results import version_result, version_sweep
 from jev_bench.policies.tiny_mlp import TinyMLPPolicy
 from jev_bench.tasks.j01_cartpole import J01CartPole
 
@@ -19,7 +20,7 @@ def run_j01_size_sweep(hidden_units: Iterable[int], *, episodes: int = 20, seed:
     if output:
         path = Path(output)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+        path.write_text(json.dumps(version_sweep(task="j01_cartpole",protocol="size-sweep",rows=rows,metadata={"episodes":episodes,"seed":seed}), indent=2), encoding="utf-8")
     return rows
 
 
@@ -30,7 +31,7 @@ def run_j02_size_sweep(dataset_root, *, test_subject: str, hidden_units: Iterabl
         row=task.train_and_evaluate(dataset_root,test_subject=test_subject,model="tiny_mlp",hidden_units=int(units),window_size=window_size,stride=stride,max_train_windows_per_subject=max_train_windows_per_subject,max_test_windows=max_test_windows,epochs=epochs,lr=lr,batch_size=batch_size,seed=seed,abstain_threshold=abstain_threshold)
         row["hidden_units"]=int(units); rows.append(row)
     if output:
-        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(rows,indent=2),encoding="utf-8")
+        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(version_sweep(task="j02_harth",protocol="subject-size-sweep",rows=rows,metadata={"test_subject":test_subject,"seed":seed}),indent=2),encoding="utf-8")
     return rows
 
 
@@ -49,7 +50,7 @@ def run_j02_loso(dataset_root, *, model: str = "tiny_mlp", hidden_units: int = 8
         rows.append(task.train_and_evaluate(dataset_root,test_subject=subject,model=model,hidden_units=hidden_units,window_size=window_size,stride=stride,max_train_windows_per_subject=max_train_windows_per_subject,max_test_windows=max_test_windows,epochs=epochs,lr=lr,batch_size=batch_size,seed=seed+i,abstain_threshold=abstain_threshold))
     result={"task":"j02_harth","protocol":"LOSO","model":model,"hidden_units":hidden_units,"rows":rows,"aggregate":aggregate_loso(rows)}
     if output:
-        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(result,indent=2),encoding="utf-8")
+        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(version_result(result,protocol="LOSO"),indent=2),encoding="utf-8")
     return result
 
 
@@ -62,7 +63,7 @@ def run_j02_loso_size_sweep(dataset_root, *, hidden_units: Iterable[int] = (1,2,
     from jev_bench.analysis import pareto_front
     result={"task":"j02_harth","protocol":"LOSO-size-sweep","rows":rows,"pareto_front":pareto_front(rows)}
     if output:
-        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(result,indent=2),encoding="utf-8")
+        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(version_sweep(task="j02_harth",protocol="LOSO-size-sweep",rows=rows,metadata={"seed":seed},pareto_front=pareto_front(rows)),indent=2),encoding="utf-8")
     return result
 
 def run_j03_size_sweep(*, hidden_units=(1,2,4,8,16,32,64), train_problems=500, test_problems=300, epochs=20, lr=0.01, batch_size=128, seed=0, abstain_threshold=0.0, permutation_trials=5, output=None):
@@ -72,5 +73,5 @@ def run_j03_size_sweep(*, hidden_units=(1,2,4,8,16,32,64), train_problems=500, t
     rows=task.size_sweep(hidden_units=hidden_units,train_problems=train_problems,test_problems=test_problems,epochs=epochs,lr=lr,batch_size=batch_size,seed=seed,abstain_threshold=abstain_threshold,permutation_trials=permutation_trials)
     summary={"task":"j03_candidate_selection","protocol":"synthetic-candidate-size-sweep","rows":rows,"pareto_front":pareto_front(rows,maximize=("selection_accuracy",),minimize=("mean_action_latency_us","model_size_bytes_fp32"))}
     if output:
-        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(summary,indent=2),encoding="utf-8")
+        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(version_sweep(task="j03_candidate_selection",protocol="synthetic-candidate-size-sweep",rows=rows,metadata={"seed":seed},pareto_front=summary["pareto_front"]),indent=2),encoding="utf-8")
     return summary

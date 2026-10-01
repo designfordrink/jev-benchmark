@@ -87,3 +87,16 @@ jev-bench j04-risk-coverage --model tiny_mlp --hidden-units 8 --output results/j
 J04 also supports `--abstain-threshold` on `j04-train`: low-confidence selector decisions fall back to the heuristic teacher. See `docs/experiment-j04-tetris.md` for the selective-decision protocol.
 
 See `docs/experiment-j04-tetris.md`.
+
+
+## Versioned result artifacts
+
+All benchmark run commands now emit the shared `jev-benchmark.result/v1` schema. Size sweeps use `jev-benchmark.sweep/v1`, with every run stored as a versioned result object.
+
+Existing raw JSON from earlier commits can be migrated without rerunning the experiment:
+
+```bash
+jev-bench normalize-result --input old-result.json --output result-v1.json
+```
+
+See `docs/result-schema-v1.md`.
