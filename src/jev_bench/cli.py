@@ -5,7 +5,8 @@ from pathlib import Path
 from jev_bench.core.results import BenchmarkResult, version_result, version_sweep
 from jev_bench.policies.registry import get_policy, list_policies
 from jev_bench.tasks.registry import get_task, list_tasks
-from jev_bench.sweep import run_j01_size_sweep, run_j02_size_sweep, run_j02_loso, run_j02_loso_multi_seed, run_j02_loso_size_sweep, run_j03_size_sweep\nfrom jev_bench.datasets.harth_hf import download_subject_files
+from jev_bench.sweep import run_j01_size_sweep, run_j02_size_sweep, run_j02_loso, run_j02_loso_multi_seed, run_j02_loso_size_sweep, run_j03_size_sweep
+from jev_bench.datasets.harth_hf import download_subject_files
 
 def build_parser() -> argparse.ArgumentParser:
     parser=argparse.ArgumentParser(prog="jev-bench"); sub=parser.add_subparsers(dest="command",required=True)
@@ -59,7 +60,10 @@ def main()->int:
     if args.command=="harth-download":
         from jev_bench.datasets.harth_download import download_harth
         _write_json(download_harth(args.output_dir, force=args.force), None); return 0
-    if args.command=="harth-hf-download":\n        subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None\n        result=download_subject_files(args.repo_id,args.output_dir,subjects=subjects,revision=args.revision,force=args.force)\n        _write_json(result,None); return 0\n    if args.command=="harth-manifest":
+    if args.command=="harth-hf-download":
+        subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None
+        result=download_subject_files(args.repo_id,args.output_dir,subjects=subjects,revision=args.revision,force=args.force)\n        _write_json(result,None); return 0
+    if args.command=="harth-manifest":
         print(json.dumps(get_task("j02_harth").evaluate_manifest(args.dataset_root,window_size=args.window_size,stride=args.stride),indent=2)); return 0
     if args.command=="harth-inspect":
         print(json.dumps(get_task("j02_harth").inspect_windows(args.dataset_root,test_subject=args.subject,window_size=args.window_size,stride=args.stride,max_windows=args.max_windows),indent=2)); return 0
