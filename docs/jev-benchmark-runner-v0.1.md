@@ -18,6 +18,8 @@ The runner is implemented as incremental end-to-end vertical slices.
 - CLI commands for J02 manifest, inspection, training and hidden-size sweep.
 - Unit tests for model invariants and subject leakage.
 - GitHub Actions CI configuration.
+- J02 multi-subject LOSO and hidden-size sweep orchestration.
+- J02 aggregate risk-coverage and Pareto-front analysis.
 
 ## Scientific safeguards
 
@@ -43,5 +45,5 @@ jev-bench harth-sweep --dataset-root /path/to/harth --test-subject S015 --hidden
 2. Add confidence calibration and risk-coverage / abstention curves.
 3. Add candidate permutation robustness where applicable.
 4. Run J02 on pinned HARTH data across multiple held-out subjects rather than relying on one subject.
-5. Add Pareto analysis over macro-F1, latency and model bytes.
+5. Add calibration-aware risk-coverage and selective prediction evaluation.
 6. Move to J03 candidate selection, where the tiny model selects among legal candidates rather than directly classifying raw labels.
