@@ -57,7 +57,7 @@ def run_j02_loso_size_sweep(dataset_root, *, hidden_units: Iterable[int] = (1,2,
     rows=[]
     for units in hidden_units:
         result=run_j02_loso(dataset_root,model="tiny_mlp",hidden_units=int(units),subjects=subjects,window_size=window_size,stride=stride,max_train_windows_per_subject=max_train_windows_per_subject,max_test_windows=max_test_windows,epochs=epochs,lr=lr,batch_size=batch_size,seed=seed,abstain_threshold=abstain_threshold)
-        aggregate=result["aggregate"]; row={"hidden_units":int(units),"model":"tiny_mlp","macro_f1":aggregate["metrics"]["macro_f1"]["mean"],"accuracy":aggregate["metrics"]["accuracy"]["mean"],"mean_confidence":aggregate["metrics"]["mean_confidence"]["mean"],"abstention_rate":aggregate["metrics"]["abstention_rate"]["mean"],"mean_inference_latency_us":aggregate["metrics"]["mean_inference_latency_us"]["mean"],"model_size_bytes_fp32":int(result["rows"][0]["model_size_bytes_fp32"]),"subject_count":aggregate["subject_count"]}
+        aggregate=result["aggregate"]; row={"hidden_units":int(units),"model":"tiny_mlp","macro_f1":aggregate["metrics"]["macro_f1"]["mean"],"accuracy":aggregate["metrics"]["accuracy"]["mean"],"mean_confidence":aggregate["metrics"]["mean_confidence"]["mean"],"abstention_rate":aggregate["metrics"]["abstention_rate"]["mean"],"mean_single_window_inference_latency_us":aggregate["metrics"]["mean_single_window_inference_latency_us"]["mean"],"model_size_bytes_fp32_mean":sum(float(r["model_size_bytes_fp32"]) for r in result["rows"])/len(result["rows"]),"subject_count":aggregate["subject_count"]}
         rows.append(row)
     from jev_bench.analysis import pareto_front
     result={"task":"j02_harth","protocol":"LOSO-size-sweep","rows":rows,"pareto_front":pareto_front(rows)}
