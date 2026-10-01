@@ -15,7 +15,28 @@ Direct archive URL:
 
 The mirror is a convenience for reproducible downloading; it does not replace UCI attribution.
 
-## Download
+## Download from Hugging Face subject CSVs
+
+The benchmark also supports the exact workflow where the subject CSV files have already been uploaded to `High-Light/jev-harth`. It queries the Hub file tree, selects `Sxxx.csv` files, downloads the requested subjects, and writes a local provenance manifest. No ZIP archive is required.
+
+```bash
+jev-bench harth-hf-download \
+  --repo-id High-Light/jev-harth \
+  --output-dir data/harth
+```
+
+For a small data inspection:
+
+```bash
+jev-bench harth-hf-download \
+  --repo-id High-Light/jev-harth \
+  --subjects S001,S002,S003 \
+  --output-dir data/harth-smoke
+```
+
+Then use the existing J02 commands unchanged against the materialized directory. The generated `harth-hf-manifest.json` records the Hub repository/revision, source file paths and object IDs, selected subjects, and local SHA-256 hashes.
+
+## Download archive
 
 After installing the benchmark:
 
