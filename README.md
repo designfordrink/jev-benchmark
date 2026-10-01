@@ -52,6 +52,22 @@ Run LOSO on all subjects:
 jev-bench harth-loso --dataset-root /path/to/harth --model tiny_mlp --hidden-units 8 --output results/j02-loso-h8.json
 ```
 
+## J02 multi-subject benchmark
+
+Run LOSO on all subjects:
+
+```bash
+jev-bench harth-loso --dataset-root /path/to/harth --model tiny_mlp --hidden-units 8 --output results/j02-loso-h8.json
+```
+
+Run repeated LOSO with several training seeds:
+
+```bash
+jev-bench harth-loso-multi-seed --dataset-root /path/to/harth --model tiny_mlp --hidden-units 8 --seeds 0,1,2,3,4 --output results/j02-loso-multi-seed-h8.json
+```
+
+The multi-seed report keeps per-seed LOSO results and separately reports seed variance plus per-subject variance across seeds. It is the preferred protocol for published Tiny MLP stability measurements.
+
 Run the size sweep across subjects:
 
 ```bash
@@ -100,3 +116,7 @@ jev-bench normalize-result --input old-result.json --output result-v1.json
 ```
 
 See `docs/result-schema-v1.md`.
+
+## Reproducibility
+
+For J02 multi-seed experiments, record the dataset version, exact held-out subject list, seed list and all training hyperparameters in the result artifact. The benchmark intentionally does not publish fabricated HARTH numbers.

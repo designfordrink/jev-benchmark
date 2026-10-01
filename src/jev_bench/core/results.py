@@ -12,7 +12,7 @@ _MODEL_KEYS = {
     "model_size_bytes_fp32", "serialized_model_size_bytes",
 }
 _EVALUATION_KEYS = {
-    "episodes", "seed", "train_episodes", "test_episodes",
+    "episodes", "seed", "seeds", "repeat_count", "train_episodes", "test_episodes",
     "train_problems", "test_problems", "candidate_count",
     "context_dim", "candidate_dim", "train_candidates",
     "train_examples", "train_windows", "test_windows",
