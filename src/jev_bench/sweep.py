@@ -64,3 +64,13 @@ def run_j02_loso_size_sweep(dataset_root, *, hidden_units: Iterable[int] = (1,2,
     if output:
         path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(result,indent=2),encoding="utf-8")
     return result
+
+def run_j03_size_sweep(*, hidden_units=(1,2,4,8,16,32,64), train_problems=500, test_problems=300, epochs=20, lr=0.01, batch_size=128, seed=0, abstain_threshold=0.0, permutation_trials=5, output=None):
+    from jev_bench.tasks.j03_candidate_selection import J03CandidateSelection
+    from jev_bench.analysis import pareto_front
+    task=J03CandidateSelection()
+    rows=task.size_sweep(hidden_units=hidden_units,train_problems=train_problems,test_problems=test_problems,epochs=epochs,lr=lr,batch_size=batch_size,seed=seed,abstain_threshold=abstain_threshold,permutation_trials=permutation_trials)
+    summary={"task":"j03_candidate_selection","protocol":"synthetic-candidate-size-sweep","rows":rows,"pareto_front":pareto_front(rows,maximize=("selection_accuracy",),minimize=("mean_action_latency_us","model_size_bytes_fp32"))}
+    if output:
+        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(summary,indent=2),encoding="utf-8")
+    return summary
