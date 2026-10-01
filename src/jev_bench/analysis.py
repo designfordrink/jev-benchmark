@@ -34,3 +34,58 @@ def pareto_front(rows: Iterable[dict[str, Any]], *, maximize: tuple[str,...]=( "
                 dominated=True; break
         if not dominated: front.append(candidate)
     return front
+
+
+def aggregate_multi_seed(seed_results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Separate training-seed variance from held-out-subject variance."""
+    if not seed_results:
+        raise ValueError("multi-seed LOSO produced no results")
+
+    seed_summaries = []
+    for result in seed_results:
+        aggregate = result.get("aggregate", {})
+        metrics = aggregate.get("metrics", {})
+        seed_summaries.append({
+            "seed": int(result["seed"]),
+            "subject_count": int(aggregate.get("subject_count", 0)),
+            "metrics": {
+                key: float(value["mean"])
+                for key, value in metrics.items()
+                if isinstance(value, dict) and "mean" in value
+            },
+        })
+
+    metric_keys = sorted({
+        key
+        for row in seed_summaries
+        for key in row["metrics"]
+    })
+    seed_variance = {
+        key: mean_std([row["metrics"][key] for row in seed_summaries if key in row["metrics"]])
+        for key in metric_keys
+    }
+
+    per_subject: dict[str, dict[str, dict[str, float]]] = {}
+    for result in seed_results:
+        seed = int(result["seed"])
+        for row in result.get("rows", []):
+            subject = str(row["test_subject"])
+            per_subject.setdefault(subject, {})
+            for key in METRIC_KEYS:
+                if key in row:
+                    per_subject[subject].setdefault(key, {})[str(seed)] = float(row[key])
+
+    subject_summary = {}
+    for subject, metrics in sorted(per_subject.items()):
+        subject_summary[subject] = {
+            key: mean_std(list(seed_values.values()))
+            for key, seed_values in metrics.items()
+        }
+
+    return {
+        "seed_count": len(seed_results),
+        "seeds": [int(r["seed"]) for r in seed_results],
+        "seed_metrics": seed_variance,
+        "subject_count": len(subject_summary),
+        "subjects": subject_summary,
+    }
