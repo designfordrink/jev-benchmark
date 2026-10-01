@@ -114,3 +114,28 @@ class BenchmarkSweep:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def version_result(payload: Mapping[str, Any], *, protocol: str | None = None) -> dict[str, Any]:
+    """Convert a task's legacy dictionary output into the shared v1 result schema."""
+    return BenchmarkResult.from_task_output(payload, protocol=protocol).to_dict()
+
+
+def version_sweep(
+    *,
+    task: str,
+    protocol: str,
+    rows: list[Mapping[str, Any]],
+    metadata: Mapping[str, Any] | None = None,
+    pareto_front: list[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build a versioned sweep artifact while preserving every run's metrics."""
+    payload = BenchmarkSweep(
+        task=task,
+        protocol=protocol,
+        runs=[version_result(row, protocol=protocol) for row in rows],
+        metadata=dict(metadata or {}),
+    ).to_dict()
+    if pareto_front is not None:
+        payload["pareto_front"] = [dict(row) for row in pareto_front]
+    return payload
