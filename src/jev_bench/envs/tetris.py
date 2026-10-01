@@ -43,7 +43,7 @@ class TetrisEnv:
     def observation(self)->np.ndarray:
         heights=self.column_heights(self.board)
         holes=self.count_holes(self.board)
-        return np.asarray([*heights,self.aggregate_height(heights),holes],dtype=np.float32)
+        return np.asarray([*(heights/self.height),self.aggregate_height(heights)/(self.width*self.height),holes/(self.width*self.height),self.current_piece/6.0],dtype=np.float32)
     @staticmethod
     def column_heights(board:np.ndarray)->np.ndarray:
         heights=np.zeros(board.shape[1],dtype=np.int32)
@@ -86,7 +86,7 @@ class TetrisEnv:
                 key=(rotation,x,y)
                 if key in seen: continue
                 seen.add(key)
-                feat=np.asarray([x/self.width,y/self.height,lines/max(1,self.height),holes/self.width,maxh/self.height,agg/(self.width*self.height),bump/(self.width*self.height),*heights[:self.width]/self.height],dtype=np.float32)
+                feat=np.asarray([x/self.width,y/self.height,lines/max(1,self.height),holes/(self.width*self.height),maxh/self.height,agg/(self.width*self.height),bump/(self.width*self.height),rotation/max(1,len(SHAPES[self.current_piece])-1)],dtype=np.float32)
                 placements.append(TetrisPlacement(cid,rotation,x,y,lines,holes,maxh,agg,bump,feat)); cid+=1
         return placements
     def step(self,placement:TetrisPlacement)->tuple[np.ndarray,float,bool,dict]:
