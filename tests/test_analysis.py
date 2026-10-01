@@ -9,7 +9,7 @@ def test_aggregate_loso_mean_std():
     assert out["subject_count"]==2
     assert out["metrics"]["macro_f1"]["mean"]==0.6
     assert out["risk_coverage"][0]["coverage_mean"]==1.0
-    assert out["risk_coverage"][0]["risk_mean"]==0.3
+    assert abs(out["risk_coverage"][0]["risk_mean"]-0.3)<1e-12
 
 def test_pareto_front_removes_dominated_row():
     rows=[
