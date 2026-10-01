@@ -94,7 +94,8 @@ def main()->int:
         units=[int(x.strip()) for x in args.hidden_units.split(",") if x.strip()]
         if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
         rows=J04Tetris().size_sweep(hidden_units=units,train_episodes=args.train_episodes,test_episodes=args.test_episodes,max_train_pieces=args.max_train_pieces,max_test_pieces=args.max_test_pieces,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,permutation_trials=args.permutation_trials)
-        payload=json.dumps({"task":"j04_tetris","protocol":"real-environment-size-sweep","rows":rows},indent=2)
+        from jev_bench.analysis import pareto_front
+        payload=json.dumps({"task":"j04_tetris","protocol":"real-environment-size-sweep","rows":rows,"pareto_front":pareto_front(rows,maximize=("mean_return",),minimize=("mean_action_latency_us","model_size_bytes_fp32"))},indent=2)
         if args.output:
             p=Path(args.output); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(payload,encoding="utf-8")
         print(payload); return 0
