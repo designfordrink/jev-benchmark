@@ -12,7 +12,7 @@ class J04HeuristicSelector:
     def reset(self,seed:int|None=None)->None: pass
     def rank(self,context:np.ndarray,candidates:list[Any]|tuple[Any,...]):
         scores=np.asarray([self.score_fn(c) for c in candidates],dtype=np.float32)
-        idx=int(scores.argmax()); shifted=scores-scores.max(); p=np.exp(shifted); p/=p.sum()
+        ids=np.asarray([int(c.candidate_id) for c in candidates],dtype=np.int64); idx=int(np.lexsort((ids,-scores))[0]); shifted=scores-scores.max(); p=np.exp(shifted); p/=p.sum()
         return idx,float(p[idx]),p
 
 class J04RandomSelector:
