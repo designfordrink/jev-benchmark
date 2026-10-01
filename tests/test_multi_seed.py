@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from jev_bench.analysis import aggregate_multi_seed
 
 
@@ -48,7 +50,7 @@ def test_multi_seed_reports_seed_variance():
 
     assert result["seed_count"] == 3
     assert result["seeds"] == [0, 1, 2]
-    assert result["seed_metrics"]["macro_f1"]["mean"] == 0.70
+    assert result["seed_metrics"]["macro_f1"]["mean"] == pytest.approx(0.70)
     assert result["seed_metrics"]["macro_f1"]["std"] > 0.0
 
 
