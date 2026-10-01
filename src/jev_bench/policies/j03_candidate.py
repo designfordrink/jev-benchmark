@@ -65,6 +65,6 @@ class CandidateLinearRegressor:
         X=np.asarray(X,dtype=np.float64); y=np.asarray(y,dtype=np.float64); design=np.column_stack([X,np.ones(len(X))]); coef=np.linalg.lstsq(design,y,rcond=None)[0]; self.w=coef[:-1].astype(np.float32); self.b=float(coef[-1]); pred=design@coef; return {"train_mse":float(np.mean((pred-y)**2))}
     def predict_scores(self,X:np.ndarray)->np.ndarray:return (np.asarray(X,dtype=np.float32)@self.w+self.b).reshape(-1)
     def rank(self,context:np.ndarray,candidates:list[Any]|tuple[Any,...])->tuple[int,float,np.ndarray]:
-        X=np.stack([np.concatenate([np.asarray(context,dtype=np.float32),np.asarray(c.features,dtype=np.float32)]) for c in candidates]); raw=self.predict_scores(X); shifted=raw-raw.max(); probs=np.exp(shifted); probs/=probs.sum(); index=int(np.argmax(raw)); return index,float(probs[index]),probs
+        X=np.stack([np.concatenate([np.asarray(context,dtype=np.float32),np.asarray(c.features,dtype=np.float32)]) for c in candidates]); raw=self.predict_scores(X); shifted=raw-raw.max(); probs=np.exp(shifted); probs/=probs.sum(); ids=np.asarray([int(c.candidate_id) for c in candidates],dtype=np.int64); index=int(np.lexsort((ids,-raw))[0]); return index,float(probs[index]),probs
     def act(self,observation:Any)->Decision:
         index,confidence,_=self.rank(observation["context"],observation["candidates"]); return Decision(action=int(observation["candidates"][index].candidate_id),confidence=confidence,abstain=confidence<self.abstain_threshold,metadata={"candidate_index":index})
