@@ -81,7 +81,7 @@ jev-bench j04-train --model tiny_mlp --hidden-units 8 --abstain-threshold 0.9 --
 jev-bench j04-risk-coverage --model tiny_mlp --hidden-units 8 --thresholds 0,0.25,0.5,0.75,0.9,0.95,0.99 --output results/j04-risk-coverage.json
 ```
 
-The risk-coverage command trains one selector and evaluates the same selector at multiple confidence thresholds. `coverage` is the fraction of actions taken by the selector; `risk` is `1 - teacher_agreement_rate` after fallback. `mean_return` and `mean_lines` show whether selective fallback changes downstream game performance.
+The risk-coverage command trains one selector and evaluates it on the same fixed set of decision states at multiple confidence thresholds. This makes `coverage` monotone by construction and keeps the curve independent of changed fallback trajectories. `risk` is the teacher-relative error rate among accepted model decisions, and `mean_teacher_regret` is reported for those accepted decisions. Downstream sequential effects of actually using fallback are measured separately by `j04-train --abstain-threshold ...`, which reports game return and lines.
 
 The sweep emits a Pareto front with mean game return maximized and single-decision latency plus model size minimized.
 
