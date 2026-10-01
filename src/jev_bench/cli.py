@@ -65,7 +65,7 @@ def main()->int:
         payload=version_sweep(task="j02_harth",protocol="subject-size-sweep",rows=rows,metadata={"test_subject":args.test_subject,"seed":args.seed}); _write_json(payload,args.output); return 0
     if args.command=="harth-loso":
         subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None
-        result=run_j02_loso(args.dataset_root,model=args.model,hidden_units=args.hidden_units,subjects=subjects,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,output=args.output)
+        result=run_j02_loso(args.dataset_root,model=args.model,hidden_units=args.hidden_units,subjects=subjects,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,output=None)
         _write_json(_version(result,"LOSO")); return 0
     if args.command=="harth-loso-sweep":
         subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None
@@ -123,9 +123,5 @@ def main()->int:
         payload=version_sweep(task="j04_tetris",protocol="real-environment-size-sweep",rows=rows,metadata={"seed":args.seed},pareto_front=pareto_front(rows,maximize=("mean_return",),minimize=("mean_action_latency_us","model_size_bytes_fp32"))); _write_json(payload,args.output); return 0
     if args.command=="harth-train":
         result=get_task("j02_harth").train_and_evaluate(args.dataset_root,test_subject=args.test_subject,model=args.model,hidden_units=args.hidden_units,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,model_output=args.model_output)
-        payload=json.dumps(result,indent=2)
-        if args.output:
-            from pathlib import Path
-            p=Path(args.output); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(payload,encoding="utf-8")
         _write_json(_version(result,"subject-train-evaluate"),args.output); return 0
     return 1
