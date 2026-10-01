@@ -48,7 +48,7 @@ class J04Tetris:
 
     def evaluate_policy(self,selector,*,episodes:int=50,max_pieces:int=300,seed:int=0,permutation_trials:int=3,abstain_threshold:float=0.0)->dict[str,Any]:
         if not 0.0 <= abstain_threshold <= 1.0: raise ValueError("abstain_threshold must be in [0, 1]")
-        returns=[]; total_lines=[]; pieces=[]; latencies=[]; selected_teacher=[]; raw_selected_teacher=[]; teacher_regrets=[]; raw_confidences=[]
+        returns=[]; total_lines=[]; pieces=[]; decision_latencies=[]; selected_teacher=[]; raw_selected_teacher=[]; teacher_regrets=[]; raw_confidences=[]
         permutation_hits=0; permutation_total=0; legal_decisions=0; decisions=0; model_decisions=0; fallback_count=0
         heuristic=J04HeuristicSelector(self.teacher_score)
         for ep in range(episodes):
@@ -58,15 +58,17 @@ class J04Tetris:
                 if not legal: break
                 context=env.observation()
                 utilities=np.asarray([self.teacher_score(p) for p in legal],dtype=np.float64)
-                teacher_idx=int(np.argmax(utilities))
-                started=time.perf_counter_ns(); raw_idx,confidence,_=selector.rank(context,legal); latencies.append((time.perf_counter_ns()-started)/1000.0)
+                candidate_ids=np.asarray([int(p.candidate_id) for p in legal],dtype=np.int64)
+                teacher_idx=int(np.lexsort((candidate_ids,-utilities))[0])
+                started=time.perf_counter_ns(); raw_idx,confidence,_=selector.rank(context,legal); decision_latency=(time.perf_counter_ns()-started)/1000.0
                 raw_confidences.append(float(confidence)); raw_selected_teacher.append(int(legal[raw_idx].candidate_id==legal[teacher_idx].candidate_id))
                 idx=raw_idx; used_fallback=confidence < abstain_threshold
                 if used_fallback:
                     fallback_count += 1
-                    fb_started=time.perf_counter_ns(); idx,fb_confidence,_=heuristic.rank(context,legal); latencies.append((time.perf_counter_ns()-fb_started)/1000.0)
+                    fb_started=time.perf_counter_ns(); idx,fb_confidence,_=heuristic.rank(context,legal); decision_latency += (time.perf_counter_ns()-fb_started)/1000.0
                 else:
                     model_decisions += 1
+                decision_latencies.append(decision_latency)
                 chosen=legal[idx]; legal_decisions += int(chosen.candidate_id in [p.candidate_id for p in legal]); decisions += 1
                 selected_teacher.append(int(chosen.candidate_id==legal[teacher_idx].candidate_id)); teacher_regrets.append(float(utilities[teacher_idx]-utilities[idx]))
                 for trial in range(permutation_trials):
@@ -110,8 +112,8 @@ class J04Tetris:
             "decision_count":int(decisions),
             "permutation_invariance_rate":permutation_hits/max(1,permutation_total),
             "legal_action_rate":legal_decisions/max(1,decisions),
-            "mean_action_latency_us":float(np.mean(latencies)) if latencies else 0.0,
-            "p95_action_latency_us":float(np.percentile(latencies,95)) if latencies else 0.0,
+            "mean_action_latency_us":float(np.mean(decision_latencies)) if decision_latencies else 0.0,
+            "p95_action_latency_us":float(np.percentile(decision_latencies,95)) if decision_latencies else 0.0,
         }
 
     def risk_coverage(self,selector,*,thresholds:Iterable[float]=(0.0,0.25,0.5,0.75,0.9,0.95,0.99),episodes:int=20,max_pieces:int=300,seed:int=0,permutation_trials:int=0)->list[dict[str,Any]]:
