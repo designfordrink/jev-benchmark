@@ -83,6 +83,7 @@ class BenchmarkResult:
             metrics=metrics,
             diagnostics=diagnostics,
             artifacts=artifacts,
+            extra=extra,
         )
 
     @classmethod
