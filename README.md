@@ -8,7 +8,7 @@ A reproducible benchmark for evaluating tiny decision models across perception, 
 
 Implemented:
 - **J01 CartPole** — control task with deterministic rule policy, tiny-model size probe, latency/confidence/fallback metrics.
-- **J02 HARTH data layer** — subject-aware streaming loader, 128×6 windows, schema validation and inspection CLI.
+- **J02 HARTH** — subject-aware streaming loader, trainable Tiny MLP, subject-disjoint LOSO, hidden-size sweep, risk-coverage and Pareto analysis.
 
 J02 model training/evaluation code is implemented, but benchmark numbers still require the real HARTH CSV files. The repository never fabricates HARTH performance.
 
