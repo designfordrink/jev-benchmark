@@ -26,6 +26,7 @@ The runner is implemented as incremental end-to-end vertical slices.
 - J04 confidence-aware abstention with heuristic fallback, model coverage/fallback metrics and ECE calibration diagnostic.
 - J04 risk-coverage runner for evaluating one trained selector across multiple confidence thresholds.
 - Shared versioned result schema for J01–J04 single-run and sweep CLI artifacts.
+- J02 multi-seed LOSO with separate seed-variance and subject-variance aggregation.
 - Legacy result migration command via `normalize-result`.
 
 ## Scientific safeguards
@@ -48,10 +49,9 @@ jev-bench harth-sweep --dataset-root /path/to/harth --test-subject S015 --hidden
 
 ## Next research layer
 
-1. Run J02 on pinned HARTH data across multiple held-out subjects and report multi-seed variance.
-2. Add calibrated confidence methods beyond raw softmax-max and compare calibration on held-out data.
-3. Escalate candidate selection from the self-contained J04 Tetris simulator to an established benchmark or richer simulator while preserving the legal-candidate/executor contract.
-4. Add cross-task Pareto aggregation over model size, latency, downstream performance and selective fallback cost.
-
-The shared result schema is now an infrastructure layer rather than a research endpoint: it makes the next experiments directly consumable by analysis scripts without task-specific JSON parsing.
+1. Run J02 on a pinned HARTH release across multiple held-out subjects and at least 3 training seeds.
+2. Compare Tiny MLP against nearest-centroid under the same subject/seed matrix.
+3. Add calibrated confidence methods beyond raw softmax-max and evaluate selective prediction.
+4. Escalate J04 from the self-contained Tetris simulator to an established benchmark while preserving the legal-candidate/executor contract.
+5. Build the cross-task Pareto report from the shared v1 result artifacts.
 
