@@ -9,6 +9,8 @@ A reproducible benchmark for evaluating tiny decision models across perception, 
 Implemented:
 - **J01 CartPole** — control task with deterministic rule policy, tiny-model size probe, latency/confidence/fallback metrics.
 - **J02 HARTH** — subject-aware streaming loader, trainable Tiny MLP, subject-disjoint LOSO, hidden-size sweep, risk-coverage and Pareto analysis.
+- **J03 Candidate Selection** — planner/selector separation on a synthetic decision task, with reward/regret, confidence and permutation invariance.
+- **J04 Tetris Candidate Selection** — sequential deterministic environment with legal-placement planning, trainable tiny selectors, confidence-aware abstention/fallback, calibration diagnostics and risk-coverage evaluation.
 
 J02 model training/evaluation code is implemented, but benchmark numbers still require the real HARTH CSV files. The repository never fabricates HARTH performance.
 
@@ -79,6 +81,9 @@ jev-bench j04-run --policy heuristic --episodes 20
 jev-bench j04-run --policy random --episodes 20
 jev-bench j04-train --model tiny_mlp --hidden-units 8
 jev-bench j04-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j04-sweep.json
+jev-bench j04-risk-coverage --model tiny_mlp --hidden-units 8 --output results/j04-risk-coverage.json
 ```
+
+J04 also supports `--abstain-threshold` on `j04-train`: low-confidence selector decisions fall back to the heuristic teacher. See `docs/experiment-j04-tetris.md` for the selective-decision protocol.
 
 See `docs/experiment-j04-tetris.md`.

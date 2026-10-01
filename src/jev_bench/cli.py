@@ -22,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     j04=sub.add_parser("j04-run"); j04.add_argument("--policy",choices=["heuristic","random"],default="heuristic"); j04.add_argument("--episodes",type=int,default=20); j04.add_argument("--max-pieces",type=int,default=300); j04.add_argument("--seed",type=int,default=0); j04.add_argument("--permutation-trials",type=int,default=3);
     j04t=sub.add_parser("j04-train"); j04t.add_argument("--model",choices=["tiny_mlp","linear"],default="tiny_mlp"); j04t.add_argument("--hidden-units",type=int,default=8); j04t.add_argument("--train-episodes",type=int,default=100); j04t.add_argument("--test-episodes",type=int,default=20); j04t.add_argument("--max-train-pieces",type=int,default=80); j04t.add_argument("--max-test-pieces",type=int,default=300); j04t.add_argument("--epochs",type=int,default=20); j04t.add_argument("--lr",type=float,default=0.01); j04t.add_argument("--batch-size",type=int,default=128); j04t.add_argument("--seed",type=int,default=0); j04t.add_argument("--abstain-threshold",type=float,default=0.0); j04t.add_argument("--permutation-trials",type=int,default=3); j04t.add_argument("--output");
     j04s=sub.add_parser("j04-sweep"); j04s.add_argument("--hidden-units",default="1,2,4,8,16,32,64"); j04s.add_argument("--train-episodes",type=int,default=100); j04s.add_argument("--test-episodes",type=int,default=20); j04s.add_argument("--max-train-pieces",type=int,default=80); j04s.add_argument("--max-test-pieces",type=int,default=300); j04s.add_argument("--epochs",type=int,default=20); j04s.add_argument("--lr",type=float,default=0.01); j04s.add_argument("--batch-size",type=int,default=128); j04s.add_argument("--seed",type=int,default=0); j04s.add_argument("--abstain-threshold",type=float,default=0.0); j04s.add_argument("--permutation-trials",type=int,default=3); j04s.add_argument("--output");
+    j04r=sub.add_parser("j04-risk-coverage"); j04r.add_argument("--model",choices=["tiny_mlp","linear"],default="tiny_mlp"); j04r.add_argument("--hidden-units",type=int,default=8); j04r.add_argument("--train-episodes",type=int,default=100); j04r.add_argument("--test-episodes",type=int,default=20); j04r.add_argument("--max-train-pieces",type=int,default=80); j04r.add_argument("--max-test-pieces",type=int,default=300); j04r.add_argument("--epochs",type=int,default=20); j04r.add_argument("--lr",type=float,default=0.01); j04r.add_argument("--batch-size",type=int,default=128); j04r.add_argument("--seed",type=int,default=0); j04r.add_argument("--thresholds",default="0,0.25,0.5,0.75,0.9,0.95,0.99"); j04r.add_argument("--output");
     return parser
 
 def main()->int:
@@ -80,6 +81,21 @@ def main()->int:
         task=J04Tetris(); selector=J04HeuristicSelector(task.teacher_score) if args.policy=="heuristic" else J04RandomSelector(args.seed)
         rows=[TetrisEnv(args.seed+i).run_episode(selector,seed=args.seed+i,max_pieces=args.max_pieces) for i in range(args.episodes)]
         print(json.dumps({"task":"j04_tetris","policy":selector.name,"episodes":args.episodes,"seed":args.seed,"mean_return":sum(r["return"] for r in rows)/len(rows),"mean_lines":sum(r["lines"] for r in rows)/len(rows),"mean_pieces":sum(r["pieces"] for r in rows)/len(rows),"rows":rows},indent=2)); return 0
+    if args.command=="j04-risk-coverage":
+        from pathlib import Path
+        from jev_bench.tasks.j04_tetris import J04Tetris
+        task=J04Tetris()
+        thresholds=[float(x.strip()) for x in args.thresholds.split(",") if x.strip()]
+        if not thresholds or any(t < 0.0 or t > 1.0 for t in thresholds): raise SystemExit("--thresholds must contain values in [0, 1]")
+        X,y=task.collect_training_data(episodes=args.train_episodes,max_pieces=args.max_train_pieces,seed=args.seed)
+        estimator,train_seconds,history=task._fit(args.model,args.hidden_units,X,y,args.seed,args.epochs,args.lr,args.batch_size,0.0)
+        rows=task.risk_coverage(estimator,thresholds=thresholds,episodes=args.test_episodes,max_pieces=args.max_test_pieces,seed=args.seed+10000,permutation_trials=0)
+        result={"task":"j04_tetris","model":args.model,"hidden_units":args.hidden_units,"train_episodes":args.train_episodes,"test_episodes":args.test_episodes,"train_examples":len(X),"train_seconds":float(train_seconds),"parameter_count":int(estimator.parameter_count),"model_size_bytes_fp32":int(estimator.model_size_bytes_fp32),"thresholds":thresholds,"rows":rows}
+        payload=json.dumps(result,indent=2)
+        if args.output:
+            p=Path(args.output); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(payload,encoding="utf-8")
+        print(payload); return 0
+
     if args.command=="j04-train":
         from pathlib import Path
         from jev_bench.tasks.j04_tetris import J04Tetris

@@ -61,3 +61,74 @@ def test_tetris_tiny_mlp_vertical_slice():
     assert result["parameter_count"]==23*2+1
     assert result["model_size_bytes_fp32"]==result["parameter_count"]*4
     assert result["mean_pieces"]>0
+
+
+def test_tetris_tiny_mlp_confidence_fallback():
+    task=J04Tetris()
+    result=task.train_and_evaluate(
+        model="tiny_mlp",
+        hidden_units=2,
+        train_episodes=3,
+        test_episodes=2,
+        max_train_pieces=5,
+        max_test_pieces=8,
+        epochs=2,
+        lr=0.01,
+        batch_size=16,
+        seed=7,
+        abstain_threshold=0.999999,
+        permutation_trials=1,
+    )
+    assert 0.0 <= result["model_coverage_rate"] <= 1.0
+    assert 0.0 <= result["fallback_rate"] <= 1.0
+    assert result["fallback_count"] > 0
+    assert result["fallback_rate"] == 1.0 - result["model_coverage_rate"]
+    assert 0.0 <= result["expected_calibration_error"] <= 1.0
+    assert result["confidence_bins"]
+
+
+def test_tetris_linear_selector_is_permutation_invariant():
+    env=TetrisEnv(13); env.reset(13)
+    task=J04Tetris()
+    from jev_bench.policies.j03_candidate import CandidateLinearRegressor
+    selector=CandidateLinearRegressor(task.context_dim+task.candidate_dim)
+    X=np.stack([np.concatenate([env.observation(),c.features]) for c in env.legal_placements()]).astype(np.float32)
+    y=np.asarray([task.teacher_score(c) for c in env.legal_placements()],dtype=np.float32)
+    selector.fit(X,y)
+    legal=env.legal_placements(); context=env.observation()
+    chosen_id=legal[selector.rank(context,legal)[0]].candidate_id
+    rng=np.random.default_rng(13)
+    for _ in range(5):
+        perm=rng.permutation(len(legal)); shuffled=[legal[int(i)] for i in perm]
+        assert shuffled[selector.rank(context,shuffled)[0]].candidate_id==chosen_id
+
+
+def test_tetris_risk_coverage_monotone():
+    task=J04Tetris()
+    X,y=task.collect_training_data(episodes=2,max_pieces=4,seed=8)
+    selector,_,_=task._fit(
+        "tiny_mlp",
+        2,
+        X,
+        y,
+        8,
+        1,
+        0.01,
+        16,
+        0.0,
+    )
+    rows=task.risk_coverage(
+        selector,
+        thresholds=(0.0,0.5,0.9,0.999999),
+        episodes=1,
+        max_pieces=6,
+        seed=18,
+        permutation_trials=0,
+    )
+    assert len(rows)==4
+    assert all(0.0 <= row["coverage"] <= 1.0 for row in rows)
+    assert all(0.0 <= row["risk"] <= 1.0 for row in rows)
+    coverages=[row["coverage"] for row in rows]
+    assert all(a >= b for a,b in zip(coverages,coverages[1:]))
+    assert rows[0]["coverage"]==1.0
+    assert rows[-1]["coverage"] <= rows[0]["coverage"]
