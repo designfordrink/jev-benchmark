@@ -4,6 +4,7 @@ from typing import Any, Iterable
 import numpy as np
 from jev_bench.envs.tetris import TetrisEnv, TetrisPlacement
 from jev_bench.policies.j03_candidate import CandidateTinyMLP, CandidateLinearRegressor
+from jev_bench.policies.j04_tetris import J04HeuristicSelector
 
 class J04Tetris:
     name="j04_tetris"
