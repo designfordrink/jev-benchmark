@@ -2,7 +2,7 @@ from __future__ import annotations
 from math import sqrt
 from typing import Any, Iterable
 
-METRIC_KEYS=("accuracy","macro_f1","mean_confidence","abstention_rate","mean_inference_latency_us","train_seconds")
+METRIC_KEYS=("accuracy","macro_f1","mean_confidence","abstention_rate","mean_single_window_inference_latency_us","train_seconds")
 
 def mean_std(rows: list[dict[str, Any]], key: str) -> dict[str, float]:
     values=[float(r[key]) for r in rows]
