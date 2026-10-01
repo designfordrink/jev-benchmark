@@ -22,6 +22,7 @@ The runner is implemented as incremental end-to-end vertical slices.
 - J02 aggregate risk-coverage and Pareto-front analysis.
 - J03 synthetic candidate-selection benchmark with planner/scorer separation, reward/regret, confidence and permutation invariance.
 - J03 linear baseline, trainable tiny MLP and capacity sweep.
+- J04 deterministic Tetris environment with legal-placement generation, heuristic/random baselines and trainable candidate selector.
 
 ## Scientific safeguards
 
