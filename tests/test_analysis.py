@@ -13,9 +13,9 @@ def test_aggregate_loso_mean_std():
 
 def test_pareto_front_removes_dominated_row():
     rows=[
-        {"id":"a","macro_f1":0.80,"mean_inference_latency_us":10,"model_size_bytes_fp32":100},
-        {"id":"b","macro_f1":0.80,"mean_inference_latency_us":20,"model_size_bytes_fp32":200},
-        {"id":"c","macro_f1":0.85,"mean_inference_latency_us":20,"model_size_bytes_fp32":200},
+        {"id":"a","macro_f1":0.80,"mean_single_window_inference_latency_us":10,"model_size_bytes_fp32_mean":100},
+        {"id":"b","macro_f1":0.80,"mean_single_window_inference_latency_us":20,"model_size_bytes_fp32_mean":200},
+        {"id":"c","macro_f1":0.85,"mean_single_window_inference_latency_us":20,"model_size_bytes_fp32_mean":200},
     ]
     front=pareto_front(rows)
     assert [r["id"] for r in front]==["a","c"]
