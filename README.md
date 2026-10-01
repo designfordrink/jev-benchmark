@@ -69,3 +69,16 @@ jev-bench j03-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j03-sweep.j
 ```
 
 See `docs/experiment-j03-candidate-selection.md`.
+
+## J04 Real Tetris Candidate Selection
+
+J04 moves candidate selection from synthetic tables into a deterministic sequential Tetris environment. The environment generates legal placements; the tiny model ranks them; evaluation measures actual game return, lines, survival, regret, permutation invariance, latency and model size.
+
+```bash
+jev-bench j04-run --policy heuristic --episodes 20
+jev-bench j04-run --policy random --episodes 20
+jev-bench j04-train --model tiny_mlp --hidden-units 8
+jev-bench j04-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j04-sweep.json
+```
+
+See `docs/experiment-j04-tetris.md`.
