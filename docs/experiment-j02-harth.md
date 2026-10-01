@@ -35,12 +35,26 @@ Inspect up to 1,000 windows from one held-out subject:
 jev-bench harth-inspect --dataset-root /path/to/harth --subject S015 --max-windows 1000
 ```
 
-## Next J02 layer
+## Multi-subject LOSO layer
 
-1. Build subject-disjoint train/test folds.
-2. Add a deterministic classical baseline.
-3. Add a trainable tiny MLP over the 128×6 window.
-4. Sweep hidden width and report parameter bytes, serialized size, latency, macro-F1 and abstention/confidence metrics.
-5. Add a leakage test that fails if a subject appears in both train and test.
+The benchmark now supports leave-one-subject-out evaluation over all discovered HARTH subject files, with optional subject selection for development runs. Each fold is trained only on the other subjects.
 
-No model-performance number should be recorded until the actual HARTH files are supplied and the benchmark runner executes them.
+```bash
+jev-bench harth-loso --dataset-root /path/to/harth --model tiny_mlp --hidden-units 8 --output results/j02-loso-h8.json
+```
+
+The LOSO result contains per-subject rows plus mean/std aggregates for accuracy, macro-F1, confidence, abstention, single-window latency and training time. It also aggregates the confidence risk-coverage curve across subjects.
+
+A full hidden-width sweep can be run with:
+
+```bash
+jev-bench harth-loso-sweep --dataset-root /path/to/harth --hidden-units 1,2,4,8,16,32,64 --output results/j02-loso-sweep.json
+```
+
+The sweep computes a Pareto front using macro-F1 as the maximization objective and mean single-window inference latency plus mean FP32 parameter bytes as minimization objectives.
+
+## Scientific safeguards
+
+The benchmark reports both batch-amortized latency and single-window latency. The latter is the metric used for the JEV size/latency Pareto analysis. Confidence is score-derived maximum softmax probability and is not yet calibrated.
+
+No HARTH performance number should be recorded until the actual dataset files are supplied and the benchmark runner executes them.
