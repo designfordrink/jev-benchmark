@@ -24,7 +24,7 @@ class J04Tetris:
         if episodes<1: raise ValueError("episodes must be positive")
         X=[]; y=[]
         for ep in range(episodes):
-            env=TetrisEnv(seed+ep); env.reset(seed+ep)
+            env=TetrisEnv(seed+ep); env.reset(seed+ep); episode_lines=0
             for _ in range(max_pieces):
                 legal=env.legal_placements()
                 if not legal: break
@@ -47,7 +47,7 @@ class J04Tetris:
         return estimator,time.perf_counter()-started,history
 
     def evaluate_policy(self,selector,*,episodes:int=50,max_pieces:int=300,seed:int=0,permutation_trials:int=3)->dict[str,Any]:
-        returns=[]; lines=[]; pieces=[]; latencies=[]; selected_teacher=[]; teacher_regrets=[]; permutation_hits=0; permutation_total=0; legal_decisions=0; decisions=0
+        returns=[]; total_lines=[]; pieces=[]; latencies=[]; selected_teacher=[]; teacher_regrets=[]; permutation_hits=0; permutation_total=0; legal_decisions=0; decisions=0
         for ep in range(episodes):
             env=TetrisEnv(seed+ep); env.reset(seed+ep)
             while not env.game_over and env.pieces<max_pieces:
@@ -71,7 +71,7 @@ class J04Tetris:
             "seed":seed,
             "mean_return":float(np.mean(returns)),
             "std_return":float(np.std(returns,ddof=1)) if len(returns)>1 else 0.0,
-            "mean_lines_last_piece":float(np.mean(lines)) if lines else 0.0,
+            "mean_lines":float(np.mean(total_lines)) if total_lines else 0.0,
             "mean_pieces":float(np.mean(pieces)) if pieces else 0.0,
             "teacher_agreement_rate":float(np.mean(selected_teacher)) if selected_teacher else 0.0,
             "mean_teacher_regret":float(np.mean(teacher_regrets)) if teacher_regrets else 0.0,
