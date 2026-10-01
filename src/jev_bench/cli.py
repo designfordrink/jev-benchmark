@@ -3,7 +3,7 @@ import argparse
 import json
 from jev_bench.policies.registry import get_policy, list_policies
 from jev_bench.tasks.registry import get_task, list_tasks
-from jev_bench.sweep import run_j01_size_sweep, run_j02_size_sweep, run_j02_loso, run_j02_loso_size_sweep
+from jev_bench.sweep import run_j01_size_sweep, run_j02_size_sweep, run_j02_loso, run_j02_loso_size_sweep, run_j03_size_sweep
 
 def build_parser() -> argparse.ArgumentParser:
     parser=argparse.ArgumentParser(prog="jev-bench"); sub=parser.add_subparsers(dest="command",required=True)
@@ -17,6 +17,8 @@ def build_parser() -> argparse.ArgumentParser:
     loso=sub.add_parser("harth-loso"); loso.add_argument("--dataset-root",required=True); loso.add_argument("--model",choices=["tiny_mlp","nearest_centroid"],default="tiny_mlp"); loso.add_argument("--hidden-units",type=int,default=8); loso.add_argument("--subjects"); loso.add_argument("--window-size",type=int,default=128); loso.add_argument("--stride",type=int,default=128); loso.add_argument("--max-train-windows-per-subject",type=int,default=500); loso.add_argument("--max-test-windows",type=int,default=2000); loso.add_argument("--epochs",type=int,default=10); loso.add_argument("--lr",type=float,default=0.01); loso.add_argument("--batch-size",type=int,default=128); loso.add_argument("--seed",type=int,default=0); loso.add_argument("--abstain-threshold",type=float,default=0.0); loso.add_argument("--output")
     lsw=sub.add_parser("harth-loso-sweep"); lsw.add_argument("--dataset-root",required=True); lsw.add_argument("--hidden-units",default="1,2,4,8,16,32,64"); lsw.add_argument("--subjects"); lsw.add_argument("--window-size",type=int,default=128); lsw.add_argument("--stride",type=int,default=128); lsw.add_argument("--max-train-windows-per-subject",type=int,default=500); lsw.add_argument("--max-test-windows",type=int,default=2000); lsw.add_argument("--epochs",type=int,default=10); lsw.add_argument("--lr",type=float,default=0.01); lsw.add_argument("--batch-size",type=int,default=128); lsw.add_argument("--seed",type=int,default=0); lsw.add_argument("--abstain-threshold",type=float,default=0.0); lsw.add_argument("--output")
     pareto=sub.add_parser("harth-pareto"); pareto.add_argument("--input",required=True);
+    j03=sub.add_parser("j03-train"); j03.add_argument("--model",choices=["tiny_mlp","linear"],default="tiny_mlp"); j03.add_argument("--hidden-units",type=int,default=8); j03.add_argument("--train-problems",type=int,default=500); j03.add_argument("--test-problems",type=int,default=300); j03.add_argument("--epochs",type=int,default=20); j03.add_argument("--lr",type=float,default=0.01); j03.add_argument("--batch-size",type=int,default=128); j03.add_argument("--seed",type=int,default=0); j03.add_argument("--abstain-threshold",type=float,default=0.0); j03.add_argument("--permutation-trials",type=int,default=5); j03.add_argument("--output");
+    j03s=sub.add_parser("j03-sweep"); j03s.add_argument("--hidden-units",default="1,2,4,8,16,32,64"); j03s.add_argument("--train-problems",type=int,default=500); j03s.add_argument("--test-problems",type=int,default=300); j03s.add_argument("--epochs",type=int,default=20); j03s.add_argument("--lr",type=float,default=0.01); j03s.add_argument("--batch-size",type=int,default=128); j03s.add_argument("--seed",type=int,default=0); j03s.add_argument("--abstain-threshold",type=float,default=0.0); j03s.add_argument("--permutation-trials",type=int,default=5); j03s.add_argument("--output");
     return parser
 
 def main()->int:
@@ -55,6 +57,19 @@ def main()->int:
         payload=json.loads(Path(args.input).read_text(encoding="utf-8"))
         rows=payload.get("rows",payload if isinstance(payload,list) else [])
         print(json.dumps(pareto_front(rows),indent=2)); return 0
+    if args.command=="j03-train":
+        from pathlib import Path
+        from jev_bench.tasks.j03_candidate_selection import J03CandidateSelection
+        result=J03CandidateSelection().train_and_evaluate(train_problems=args.train_problems,test_problems=args.test_problems,model=args.model,hidden_units=args.hidden_units,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,permutation_trials=args.permutation_trials)
+        payload=json.dumps(result,indent=2)
+        if args.output:
+            p=Path(args.output); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(payload,encoding="utf-8")
+        print(payload); return 0
+    if args.command=="j03-sweep":
+        units=[int(x.strip()) for x in args.hidden_units.split(",") if x.strip()]
+        if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
+        result=run_j03_size_sweep(hidden_units=units,train_problems=args.train_problems,test_problems=args.test_problems,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,permutation_trials=args.permutation_trials,output=args.output)
+        print(json.dumps(result,indent=2)); return 0
     if args.command=="harth-train":
         result=get_task("j02_harth").train_and_evaluate(args.dataset_root,test_subject=args.test_subject,model=args.model,hidden_units=args.hidden_units,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,model_output=args.model_output)
         payload=json.dumps(result,indent=2)
