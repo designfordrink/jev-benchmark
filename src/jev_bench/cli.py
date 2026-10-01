@@ -63,7 +63,8 @@ def main()->int:
         _write_json(download_harth(args.output_dir, force=args.force), None); return 0
     if args.command=="harth-hf-download":
         subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None
-        result=download_subject_files(args.repo_id,args.output_dir,subjects=subjects,revision=args.revision,force=args.force)\n        _write_json(result,None); return 0
+        result=download_subject_files(args.repo_id,args.output_dir,subjects=subjects,revision=args.revision,force=args.force)
+        _write_json(result,None); return 0
     if args.command=="harth-manifest":
         print(json.dumps(get_task("j02_harth").evaluate_manifest(args.dataset_root,window_size=args.window_size,stride=args.stride),indent=2)); return 0
     if args.command=="harth-inspect":
