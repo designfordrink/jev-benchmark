@@ -92,7 +92,8 @@ class TetrisEnv:
     def step(self,placement:TetrisPlacement)->tuple[np.ndarray,float,bool,dict]:
         if self.game_over: raise RuntimeError("game is over")
         legal=self.legal_placements()
-        if not any((p.rotation,p.x,p.y)==(placement.rotation,placement.x,placement.y) for p in legal): raise ValueError("illegal Tetris placement")
+        matching=next((p for p in legal if p.candidate_id==placement.candidate_id),None)
+        if matching is None or (matching.rotation,matching.x,matching.y)!=(placement.rotation,placement.x,placement.y): raise ValueError("illegal Tetris placement")
         cells=self._cells(self.current_piece,placement.rotation,placement.x,placement.y)
         for px,py in cells: self.board[py,px]=1
         full=np.all(self.board==1,axis=1); lines=int(full.sum());
