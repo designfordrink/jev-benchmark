@@ -87,7 +87,7 @@ def aggregate_multi_seed(seed_results: list[dict[str, Any]]) -> dict[str, Any]:
     subject_summary = {}
     for subject, metrics in sorted(per_subject.items()):
         subject_summary[subject] = {
-            key: mean_std(list(seed_values.values()))
+            key: _mean_std_values(list(seed_values.values()))
             for key, seed_values in metrics.items()
         }
 
