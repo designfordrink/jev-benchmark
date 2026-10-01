@@ -54,6 +54,67 @@ def run_j02_loso(dataset_root, *, model: str = "tiny_mlp", hidden_units: int = 8
     return result
 
 
+def run_j02_loso_multi_seed(
+    dataset_root,
+    *,
+    seeds: Iterable[int] = (0, 1, 2),
+    model: str = "tiny_mlp",
+    hidden_units: int = 8,
+    subjects: Iterable[str] | None = None,
+    window_size: int = 128,
+    stride: int = 128,
+    max_train_windows_per_subject: int | None = 500,
+    max_test_windows: int | None = 2000,
+    epochs: int = 10,
+    lr: float = 0.01,
+    batch_size: int = 128,
+    abstain_threshold: float = 0.0,
+    output: str | None = None,
+):
+    from jev_bench.analysis import aggregate_multi_seed
+
+    seed_list = [int(s) for s in seeds]
+    if not seed_list:
+        raise ValueError("At least one seed is required")
+
+    runs = [
+        run_j02_loso(
+            dataset_root,
+            model=model,
+            hidden_units=hidden_units,
+            subjects=subjects,
+            window_size=window_size,
+            stride=stride,
+            max_train_windows_per_subject=max_train_windows_per_subject,
+            max_test_windows=max_test_windows,
+            epochs=epochs,
+            lr=lr,
+            batch_size=batch_size,
+            seed=seed,
+            abstain_threshold=abstain_threshold,
+            output=None,
+        )
+        for seed in seed_list
+    ]
+    result = {
+        "task": "j02_harth",
+        "protocol": "LOSO-multi-seed",
+        "model": model,
+        "hidden_units": hidden_units,
+        "seeds": seed_list,
+        "runs": runs,
+        "aggregate": aggregate_multi_seed(runs),
+    }
+    if output:
+        path = Path(output)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(version_result(result, protocol="LOSO-multi-seed"), indent=2),
+            encoding="utf-8",
+        )
+    return result
+
+
 def run_j02_loso_size_sweep(dataset_root, *, hidden_units: Iterable[int] = (1,2,4,8,16,32,64), subjects: Iterable[str] | None = None, window_size: int = 128, stride: int = 128, max_train_windows_per_subject: int | None = 500, max_test_windows: int | None = 2000, epochs: int = 10, lr: float = 0.01, batch_size: int = 128, seed: int = 0, abstain_threshold: float = 0.0, output: str | None = None):
     rows=[]
     for units in hidden_units:
