@@ -61,8 +61,8 @@ def main()->int:
     if args.command=="harth-sweep":
         units=[int(x.strip()) for x in args.hidden_units.split(",") if x.strip()]
         if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
-        rows=run_j02_size_sweep(args.dataset_root,test_subject=args.test_subject,hidden_units=units,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,output=args.output)
-        print(json.dumps(rows,indent=2)); return 0
+        rows=run_j02_size_sweep(args.dataset_root,test_subject=args.test_subject,hidden_units=units,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,output=None)
+        payload=version_sweep(task="j02_harth",protocol="subject-size-sweep",rows=rows,metadata={"test_subject":args.test_subject,"seed":args.seed}); _write_json(payload,args.output); return 0
     if args.command=="harth-loso":
         subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None
         result=run_j02_loso(args.dataset_root,model=args.model,hidden_units=args.hidden_units,subjects=subjects,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,output=args.output)
@@ -71,7 +71,7 @@ def main()->int:
         subjects=[x.strip() for x in args.subjects.split(",") if x.strip()] if args.subjects else None
         units=[int(x.strip()) for x in args.hidden_units.split(",") if x.strip()]
         if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
-        result=run_j02_loso_size_sweep(args.dataset_root,hidden_units=units,subjects=subjects,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,output=args.output)
+        result=run_j02_loso_size_sweep(args.dataset_root,hidden_units=units,subjects=subjects,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,output=None)
         payload=version_sweep(task="j02_harth",protocol="LOSO-size-sweep",rows=result["rows"],metadata={"seed":args.seed},pareto_front=result.get("pareto_front")); _write_json(payload,args.output); return 0
     if args.command=="harth-pareto":
         from pathlib import Path
@@ -87,7 +87,7 @@ def main()->int:
     if args.command=="j03-sweep":
         units=[int(x.strip()) for x in args.hidden_units.split(",") if x.strip()]
         if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
-        result=run_j03_size_sweep(hidden_units=units,train_problems=args.train_problems,test_problems=args.test_problems,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,permutation_trials=args.permutation_trials,output=args.output)
+        result=run_j03_size_sweep(hidden_units=units,train_problems=args.train_problems,test_problems=args.test_problems,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,permutation_trials=args.permutation_trials,output=None)
         payload=version_sweep(task="j03_candidate_selection",protocol="synthetic-candidate-size-sweep",rows=result["rows"],metadata={"seed":args.seed},pareto_front=result.get("pareto_front")); _write_json(payload,args.output); return 0
     if args.command=="j04-run":
         from jev_bench.envs.tetris import TetrisEnv
@@ -106,18 +106,12 @@ def main()->int:
         estimator,train_seconds,history=task._fit(args.model,args.hidden_units,X,y,args.seed,args.epochs,args.lr,args.batch_size,0.0)
         rows=task.risk_coverage(estimator,thresholds=thresholds,episodes=args.test_episodes,max_pieces=args.max_test_pieces,seed=args.seed+10000,permutation_trials=0)
         result={"task":"j04_tetris","model":args.model,"hidden_units":args.hidden_units,"train_episodes":args.train_episodes,"test_episodes":args.test_episodes,"train_examples":len(X),"train_seconds":float(train_seconds),"parameter_count":int(estimator.parameter_count),"model_size_bytes_fp32":int(estimator.model_size_bytes_fp32),"thresholds":thresholds,"rows":rows}
-        payload=json.dumps(result,indent=2)
-        if args.output:
-            p=Path(args.output); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(payload,encoding="utf-8")
         _write_json(_version(result,"risk-coverage"),args.output); return 0
 
     if args.command=="j04-train":
         from pathlib import Path
         from jev_bench.tasks.j04_tetris import J04Tetris
         result=J04Tetris().train_and_evaluate(model=args.model,hidden_units=args.hidden_units,train_episodes=args.train_episodes,test_episodes=args.test_episodes,max_train_pieces=args.max_train_pieces,max_test_pieces=args.max_test_pieces,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,permutation_trials=args.permutation_trials)
-        payload=json.dumps(result,indent=2)
-        if args.output:
-            p=Path(args.output); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(payload,encoding="utf-8")
         _write_json(_version(result,"sequential-train-evaluate"),args.output); return 0
     if args.command=="j04-sweep":
         from pathlib import Path
@@ -126,9 +120,6 @@ def main()->int:
         if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
         rows=J04Tetris().size_sweep(hidden_units=units,train_episodes=args.train_episodes,test_episodes=args.test_episodes,max_train_pieces=args.max_train_pieces,max_test_pieces=args.max_test_pieces,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,permutation_trials=args.permutation_trials)
         from jev_bench.analysis import pareto_front
-        payload=json.dumps({"task":"j04_tetris","protocol":"real-environment-size-sweep","rows":rows,"pareto_front":pareto_front(rows,maximize=("mean_return",),minimize=("mean_action_latency_us","model_size_bytes_fp32"))},indent=2)
-        if args.output:
-            p=Path(args.output); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(payload,encoding="utf-8")
         payload=version_sweep(task="j04_tetris",protocol="real-environment-size-sweep",rows=rows,metadata={"seed":args.seed},pareto_front=pareto_front(rows,maximize=("mean_return",),minimize=("mean_action_latency_us","model_size_bytes_fp32"))); _write_json(payload,args.output); return 0
     if args.command=="harth-train":
         result=get_task("j02_harth").train_and_evaluate(args.dataset_root,test_subject=args.test_subject,model=args.model,hidden_units=args.hidden_units,window_size=args.window_size,stride=args.stride,max_train_windows_per_subject=args.max_train_windows_per_subject,max_test_windows=args.max_test_windows,epochs=args.epochs,lr=args.lr,batch_size=args.batch_size,seed=args.seed,abstain_threshold=args.abstain_threshold,model_output=args.model_output)
