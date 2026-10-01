@@ -123,7 +123,6 @@ def test_tetris_risk_coverage_monotone():
         episodes=1,
         max_pieces=6,
         seed=18,
-        permutation_trials=0,
     )
     assert len(rows)==4
     assert all(0.0 <= row["coverage"] <= 1.0 for row in rows)
