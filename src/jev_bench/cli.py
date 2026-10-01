@@ -56,7 +56,10 @@ def main()->int:
         units=[int(x.strip()) for x in args.hidden_units.split(",") if x.strip()]
         if not units or any(u<1 for u in units): raise SystemExit("--hidden-units must contain positive integers")
         rows=run_j01_size_sweep(units,episodes=args.episodes,seed=args.seed,output=None); _write_json(version_sweep(task="j01_cartpole",protocol="size-sweep",rows=rows,metadata={"episodes":args.episodes,"seed":args.seed}),args.output); return 0
-    if args.command=="harth-download":\n        from jev_bench.datasets.harth_download import download_harth\n        _write_json(download_harth(args.output_dir, force=args.force), None); return 0\n    if args.command=="harth-manifest":
+    if args.command=="harth-download":
+        from jev_bench.datasets.harth_download import download_harth
+        _write_json(download_harth(args.output_dir, force=args.force), None); return 0
+    if args.command=="harth-manifest":
         print(json.dumps(get_task("j02_harth").evaluate_manifest(args.dataset_root,window_size=args.window_size,stride=args.stride),indent=2)); return 0
     if args.command=="harth-inspect":
         print(json.dumps(get_task("j02_harth").inspect_windows(args.dataset_root,test_subject=args.subject,window_size=args.window_size,stride=args.stride,max_windows=args.max_windows),indent=2)); return 0
