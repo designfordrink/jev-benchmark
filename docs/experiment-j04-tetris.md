@@ -40,6 +40,14 @@ The trainable models are tiny_mlp and linear, reusing the J03 candidate scorer w
 
 The J04 runner reports mean/std game return, mean lines cleared, mean pieces survived, teacher agreement and local teacher regret, candidate-order invariance, legal-action rate, mean/p95 decision latency, parameter count and FP32 model bytes.
 
+The selective-decision layer adds three related measurements:
+
+- **model coverage** — fraction of decisions accepted from the tiny model;
+- **fallback rate** — fraction of decisions handed to the heuristic teacher because confidence was below the threshold;
+- **expected calibration error (ECE)** — confidence calibration against agreement with the local teacher. This is a calibration diagnostic, not ground-truth optimality.
+
+A fallback decision still executes a legal placement from the planner-generated set. Therefore the abstention mechanism cannot invent an action; it only changes who chooses among legal candidates.
+
 ## Commands
 
 Heuristic baseline:
@@ -65,6 +73,15 @@ Capacity sweep:
 ```bash
 jev-bench j04-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j04-sweep.json
 ```
+
+Confidence / fallback evaluation:
+
+```bash
+jev-bench j04-train --model tiny_mlp --hidden-units 8 --abstain-threshold 0.9 --output results/j04-selective.json
+jev-bench j04-risk-coverage --model tiny_mlp --hidden-units 8 --thresholds 0,0.25,0.5,0.75,0.9,0.95,0.99 --output results/j04-risk-coverage.json
+```
+
+The risk-coverage command trains one selector and evaluates the same selector at multiple confidence thresholds. `coverage` is the fraction of actions taken by the selector; `risk` is `1 - teacher_agreement_rate` after fallback. `mean_return` and `mean_lines` show whether selective fallback changes downstream game performance.
 
 The sweep emits a Pareto front with mean game return maximized and single-decision latency plus model size minimized.
 
