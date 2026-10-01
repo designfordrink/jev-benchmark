@@ -1,6 +1,8 @@
 from __future__ import annotations
 import argparse
 import json
+from pathlib import Path
+from jev_bench.core.results import BenchmarkResult, version_result, version_sweep
 from jev_bench.policies.registry import get_policy, list_policies
 from jev_bench.tasks.registry import get_task, list_tasks
 from jev_bench.sweep import run_j01_size_sweep, run_j02_size_sweep, run_j02_loso, run_j02_loso_size_sweep, run_j03_size_sweep
@@ -8,6 +10,7 @@ from jev_bench.sweep import run_j01_size_sweep, run_j02_size_sweep, run_j02_loso
 def build_parser() -> argparse.ArgumentParser:
     parser=argparse.ArgumentParser(prog="jev-bench"); sub=parser.add_subparsers(dest="command",required=True)
     sub.add_parser("list-tasks"); sub.add_parser("list-policies")
+    norm=sub.add_parser("normalize-result"); norm.add_argument("--input",required=True); norm.add_argument("--output"); norm.add_argument("--protocol")
     run=sub.add_parser("run"); run.add_argument("--task",required=True); run.add_argument("--policy",required=True); run.add_argument("--episodes",type=int,default=20); run.add_argument("--seed",type=int,default=0)
     sweep=sub.add_parser("sweep"); sweep.add_argument("--task",default="j01_cartpole"); sweep.add_argument("--hidden-units",default="1,2,4,8,16,32,64"); sweep.add_argument("--episodes",type=int,default=20); sweep.add_argument("--seed",type=int,default=0); sweep.add_argument("--output")
     manifest=sub.add_parser("harth-manifest"); manifest.add_argument("--dataset-root",required=True); manifest.add_argument("--window-size",type=int,default=128); manifest.add_argument("--stride",type=int,default=128)
@@ -25,10 +28,25 @@ def build_parser() -> argparse.ArgumentParser:
     j04r=sub.add_parser("j04-risk-coverage"); j04r.add_argument("--model",choices=["tiny_mlp","linear"],default="tiny_mlp"); j04r.add_argument("--hidden-units",type=int,default=8); j04r.add_argument("--train-episodes",type=int,default=100); j04r.add_argument("--test-episodes",type=int,default=20); j04r.add_argument("--max-train-pieces",type=int,default=80); j04r.add_argument("--max-test-pieces",type=int,default=300); j04r.add_argument("--epochs",type=int,default=20); j04r.add_argument("--lr",type=float,default=0.01); j04r.add_argument("--batch-size",type=int,default=128); j04r.add_argument("--seed",type=int,default=0); j04r.add_argument("--thresholds",default="0,0.25,0.5,0.75,0.9,0.95,0.99"); j04r.add_argument("--output");
     return parser
 
+def _write_json(payload, output=None):
+    encoded=json.dumps(payload,indent=2)
+    if output:
+        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(encoded,encoding="utf-8")
+    print(encoded)
+
+
+def _version(payload,protocol=None):
+    return version_result(payload,protocol=protocol)
+
+
 def main()->int:
     args=build_parser().parse_args()
     if args.command=="list-tasks": print("\\n".join(list_tasks())); return 0
     if args.command=="list-policies": print("\\n".join(list_policies())); return 0
+    if args.command=="normalize-result":
+        payload=json.loads(Path(args.input).read_text(encoding="utf-8"))
+        normalized=payload if payload.get("schema_version")=="jev-benchmark.result/v1" else _version(payload,args.protocol)
+        _write_json(normalized,args.output); return 0
     if args.command=="run":
         result=get_task(args.task).evaluate(get_policy(args.policy),episodes=args.episodes,seed=args.seed); print(json.dumps(result,indent=2)); return 0
     if args.command=="sweep":
