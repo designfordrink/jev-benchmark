@@ -20,6 +20,8 @@ The runner is implemented as incremental end-to-end vertical slices.
 - GitHub Actions CI configuration.
 - J02 multi-subject LOSO and hidden-size sweep orchestration.
 - J02 aggregate risk-coverage and Pareto-front analysis.
+- J03 synthetic candidate-selection benchmark with planner/scorer separation, reward/regret, confidence and permutation invariance.
+- J03 linear baseline, trainable tiny MLP and capacity sweep.
 
 ## Scientific safeguards
 
@@ -46,4 +48,4 @@ jev-bench harth-sweep --dataset-root /path/to/harth --test-subject S015 --hidden
 3. Add candidate permutation robustness where applicable.
 4. Run J02 on pinned HARTH data across multiple held-out subjects rather than relying on one subject.
 5. Add calibration-aware risk-coverage and selective prediction evaluation.
-6. Move to J03 candidate selection, where the tiny model selects among legal candidates rather than directly classifying raw labels.
+6. Add real-world J03 candidate environments and deterministic executors after the synthetic mechanism-validation task.
