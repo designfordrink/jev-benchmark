@@ -41,3 +41,23 @@ def test_tetris_rejects_illegal_placement():
     legal=env.legal_placements()
     with pytest.raises(ValueError):
         env.step(type(legal[0])(999,legal[0].rotation,legal[0].x,legal[0].y,legal[0].lines_cleared,legal[0].holes,legal[0].max_height,legal[0].aggregate_height,legal[0].bumpiness,legal[0].features))
+
+def test_tetris_tiny_mlp_vertical_slice():
+    task=J04Tetris()
+    result=task.train_and_evaluate(
+        model="tiny_mlp",
+        hidden_units=2,
+        train_episodes=3,
+        test_episodes=2,
+        max_train_pieces=5,
+        max_test_pieces=8,
+        epochs=2,
+        lr=0.01,
+        batch_size=16,
+        seed=4,
+        permutation_trials=2,
+    )
+    assert result["train_examples"]>0
+    assert result["parameter_count"]==23*2+1
+    assert result["model_size_bytes_fp32"]==result["parameter_count"]*4
+    assert result["mean_pieces"]>0
