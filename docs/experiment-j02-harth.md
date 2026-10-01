@@ -45,6 +45,26 @@ jev-bench harth-loso --dataset-root /path/to/harth --model tiny_mlp --hidden-uni
 
 The LOSO result contains per-subject rows plus mean/std aggregates for accuracy, macro-F1, confidence, abstention, single-window latency and training time. It also aggregates the confidence risk-coverage curve across subjects.
 
+## Multi-seed LOSO
+
+A single LOSO run still mixes two sources of variation: which subject is held out and which training seed was used. The multi-seed protocol repeats the complete LOSO procedure for several seeds, then reports:
+
+- **seed variance** — variation of the LOSO aggregate across repeated training seeds;
+- **subject variance** — for each held-out subject, variation across those repeated seeds.
+
+This prevents a single favorable seed from being mistaken for stable model behavior.
+
+```bash
+jev-bench harth-loso-multi-seed \
+  --dataset-root /path/to/harth \
+  --model tiny_mlp \
+  --hidden-units 8 \
+  --seeds 0,1,2,3,4 \
+  --output results/j02-loso-multi-seed-h8.json
+```
+
+The JSON artifact uses the shared `jev-benchmark.result/v1` schema. The multi-seed aggregate is descriptive: it does not pool subjects and seeds into a single pseudo-sample.
+
 A full hidden-width sweep can be run with:
 
 ```bash
@@ -57,4 +77,4 @@ The sweep computes a Pareto front using macro-F1 as the maximization objective a
 
 The benchmark reports both batch-amortized latency and single-window latency. The latter is the metric used for the JEV size/latency Pareto analysis. Confidence is score-derived maximum softmax probability and is not yet calibrated.
 
-No HARTH performance number should be recorded until the actual dataset files are supplied and the benchmark runner executes them.
+No HARTH performance number should be recorded until the actual dataset files are supplied and the benchmark runner executes them. For published multi-seed results, report the exact seed list, held-out subject list and dataset version alongside the aggregate metrics.
