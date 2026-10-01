@@ -105,17 +105,30 @@ def test_tetris_linear_selector_is_permutation_invariant():
 
 def test_tetris_risk_coverage_monotone():
     task=J04Tetris()
-    selector_result=task.train_and_evaluate(
-        model="tiny_mlp",
-        hidden_units=2,
-        train_episodes=2,
-        test_episodes=1,
-        max_train_pieces=4,
-        max_test_pieces=6,
-        epochs=1,
-        lr=0.01,
-        batch_size=16,
-        seed=8,
+    X,y=task.collect_training_data(episodes=2,max_pieces=4,seed=8)
+    selector,_,_=task._fit(
+        "tiny_mlp",
+        2,
+        X,
+        y,
+        8,
+        1,
+        0.01,
+        16,
+        0.0,
+    )
+    rows=task.risk_coverage(
+        selector,
+        thresholds=(0.0,0.5,0.9,0.999999),
+        episodes=1,
+        max_pieces=6,
+        seed=18,
         permutation_trials=0,
     )
-    assert selector_result["model_size_bytes_fp32"]==47*4
+    assert len(rows)==4
+    assert all(0.0 <= row["coverage"] <= 1.0 for row in rows)
+    assert all(0.0 <= row["risk"] <= 1.0 for row in rows)
+    coverages=[row["coverage"] for row in rows]
+    assert all(a >= b for a,b in zip(coverages,coverages[1:]))
+    assert rows[0]["coverage"]==1.0
+    assert rows[-1]["coverage"] <= rows[0]["coverage"]
