@@ -63,7 +63,7 @@ def run_j02_loso_size_sweep(dataset_root, *, hidden_units: Iterable[int] = (1,2,
     from jev_bench.analysis import pareto_front
     result={"task":"j02_harth","protocol":"LOSO-size-sweep","rows":rows,"pareto_front":pareto_front(rows)}
     if output:
-        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(version_sweep(task="j02_harth",protocol="LOSO-size-sweep",rows=rows,metadata={"seed":seed},pareto_front=pareto_front(result and rows)),indent=2),encoding="utf-8")
+        path=Path(output); path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(version_sweep(task="j02_harth",protocol="LOSO-size-sweep",rows=rows,metadata={"seed":seed},pareto_front=pareto_front(rows)),indent=2),encoding="utf-8")
     return result
 
 def run_j03_size_sweep(*, hidden_units=(1,2,4,8,16,32,64), train_problems=500, test_problems=300, epochs=20, lr=0.01, batch_size=128, seed=0, abstain_threshold=0.0, permutation_trials=5, output=None):
