@@ -31,6 +31,20 @@ jev-bench sweep --task j01_cartpole --hidden-units 1,2,4,8,16,32,64 --episodes 2
 
 ## J02 HARTH
 
+The public HARTH dataset is external to this repository. You can either use the archive downloader or, when the subject CSV files are already uploaded to Hugging Face, materialize them directly from the Hub:
+
+```bash
+jev-bench harth-hf-download --repo-id High-Light/jev-harth --output-dir data/harth
+```
+
+To fetch only selected subjects while inspecting the dataset:
+
+```bash
+jev-bench harth-hf-download --repo-id High-Light/jev-harth --subjects S001,S002,S003 --output-dir data/harth
+```
+
+This writes normalized local `Sxxx.csv` files plus `harth-hf-manifest.json` containing the Hub file path, file revision object id when available, local SHA-256 and exact subject list. The normal J02 loader then consumes `data/harth` unchanged.
+
 The public HARTH dataset is external to this repository. After downloading a pinned release:
 
 ```bash
