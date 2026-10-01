@@ -10,7 +10,7 @@ from pathlib import Path
 HF_REPO = "High-Light/jev-harth"
 HF_REVISION = "main"
 HF_FILENAME = "harth.zip"
-HF_URL = f"https://huggingface.co/datasets/{HF_REPO}/resolve/{HF_REVISION}/{HF_FILENAME}?download=true"
+HF_URL = f"https://huggingface.co/datasets/{HF_REPO}/resolve/{HF_REVISION}/{HF_FILENAME}"
 
 
 def sha256_file(path: str | Path, *, chunk_size: int = 1024 * 1024) -> str:
