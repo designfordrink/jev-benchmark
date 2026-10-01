@@ -44,3 +44,26 @@ class HarthDataset:
             if len(set(labels[:window_size]))==1:
                 yield HarthWindow(self.subject_id(path),np.stack(buffer[:window_size]),labels[0])
             del buffer[:stride]; del labels[:stride]
+
+
+def sample_subject_windows(dataset: HarthDataset, path: Path, *, window_size: int = 128, stride: int = 128, max_windows: int | None = None, seed: int = 0) -> list[HarthWindow]:
+    windows = list(dataset.iter_windows(path, window_size=window_size, stride=stride))
+    if max_windows is None or len(windows) <= max_windows:
+        return windows
+    rng = np.random.default_rng(seed)
+    indices = np.sort(rng.choice(len(windows), size=max_windows, replace=False))
+    return [windows[int(i)] for i in indices]
+
+def load_subject_split(dataset_root: str | Path, *, test_subject: str, window_size: int = 128, stride: int = 128, max_train_windows_per_subject: int | None = 500, max_test_windows: int | None = 2000, seed: int = 0) -> tuple[list[HarthWindow], list[HarthWindow], list[str]]:
+    dataset = HarthDataset(dataset_root)
+    files = dataset.files()
+    train_files = [p for p in files if dataset.subject_id(p) != test_subject]
+    test_path = dataset.root / f"{test_subject}.csv"
+    if not test_path.exists(): raise FileNotFoundError(f"Test subject not found: {test_path}")
+    train=[]
+    for i,path in enumerate(train_files):
+        train.extend(sample_subject_windows(dataset,path,window_size=window_size,stride=stride,max_windows=max_train_windows_per_subject,seed=seed+i))
+    test=sample_subject_windows(dataset,test_path,window_size=window_size,stride=stride,max_windows=max_test_windows,seed=seed+10_000)
+    if not train or not test: raise ValueError("Subject split produced no windows")
+    train_subjects=[dataset.subject_id(p) for p in train_files]
+    return train,test,train_subjects
