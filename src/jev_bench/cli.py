@@ -104,7 +104,7 @@ def main()->int:
         if not thresholds or any(t < 0.0 or t > 1.0 for t in thresholds): raise SystemExit("--thresholds must contain values in [0, 1]")
         X,y=task.collect_training_data(episodes=args.train_episodes,max_pieces=args.max_train_pieces,seed=args.seed)
         estimator,train_seconds,history=task._fit(args.model,args.hidden_units,X,y,args.seed,args.epochs,args.lr,args.batch_size,0.0)
-        rows=task.risk_coverage(estimator,thresholds=thresholds,episodes=args.test_episodes,max_pieces=args.max_test_pieces,seed=args.seed+10000,permutation_trials=0)
+        rows=task.risk_coverage(estimator,thresholds=thresholds,episodes=args.test_episodes,max_pieces=args.max_test_pieces,seed=args.seed+10000)
         result={"task":"j04_tetris","model":args.model,"hidden_units":args.hidden_units,"train_episodes":args.train_episodes,"test_episodes":args.test_episodes,"train_examples":len(X),"train_seconds":float(train_seconds),"parameter_count":int(estimator.parameter_count),"model_size_bytes_fp32":int(estimator.model_size_bytes_fp32),"thresholds":thresholds,"rows":rows}
         _write_json(_version(result,"risk-coverage"),args.output); return 0
 
