@@ -1,23 +1,47 @@
 # JEV Benchmark Runner v0.1
 
-This repository implements the benchmark runner as an incremental set of end-to-end vertical slices.
+The runner is implemented as incremental end-to-end vertical slices.
 
-## Implemented in bootstrap
+## Implemented
 
-- `Decision` contract: action, confidence, metadata
-- task/policy protocol separation
-- J01 CartPole environment adapter
-- deterministic rule baseline
-- CLI: `list-tasks`, `list-policies`, `run`
-- reward and action-latency metrics
-- deterministic seed handling
-- regression test
+- `Decision` contract with action, confidence, abstention and metadata.
+- Task/policy separation.
+- J01 CartPole with deterministic rule baseline.
+- J01 tiny fixed-weight MLP inference-size probe.
+- J01 latency, reward, confidence, abstention and fallback metrics.
+- Deterministic seed handling and hidden-size sweep.
+- J02 HARTH data contract: streaming CSV reader, schema validation, pure 128×6 windows.
+- J02 subject-disjoint split with deterministic bounded window sampling.
+- J02 nearest-centroid classical baseline.
+- J02 trainable NumPy Tiny MLP.
+- J02 accuracy, macro-F1, confidence, abstention, inference latency, parameter bytes and serialized model size.
+- CLI commands for J02 manifest, inspection, training and hidden-size sweep.
+- Unit tests for model invariants and subject leakage.
+- GitHub Actions CI configuration.
 
-## Next
+## Scientific safeguards
 
-1. tiny neural policy adapter and model-size accounting
-2. confidence, abstention, and fallback contract
-3. J02 HARTH
-4. J03 candidate selection
-5. `train`, `evaluate`, and `sweep`
-6. result artifact schema and Pareto analysis
+The benchmark distinguishes model weights from serialized artifact size. Confidence is the model's score-derived maximum probability, not yet a calibrated confidence estimate. Raw HARTH data is external to the repository; synthetic fixtures are test-only and must never be reported as benchmark results.
+
+For J02, the held-out subject is never included in the training set. Training normalization statistics are estimated from training windows only inside the Tiny MLP. Test labels not represented in the training subjects cause the run to fail rather than silently producing incomplete metrics.
+
+## CLI
+
+```bash
+jev-bench list-tasks
+jev-bench list-policies
+jev-bench harth-manifest --dataset-root /path/to/harth
+jev-bench harth-inspect --dataset-root /path/to/harth --subject S015
+jev-bench harth-train --dataset-root /path/to/harth --test-subject S015 --model tiny_mlp --hidden-units 8
+jev-bench harth-train --dataset-root /path/to/harth --test-subject S015 --model nearest_centroid
+jev-bench harth-sweep --dataset-root /path/to/harth --test-subject S015 --hidden-units 1,2,4,8,16,32,64
+```
+
+## Next research layer
+
+1. Add a common result schema and versioned JSON artifact.
+2. Add confidence calibration and risk-coverage / abstention curves.
+3. Add candidate permutation robustness where applicable.
+4. Run J02 on pinned HARTH data across multiple held-out subjects rather than relying on one subject.
+5. Add Pareto analysis over macro-F1, latency and model bytes.
+6. Move to J03 candidate selection, where the tiny model selects among legal candidates rather than directly classifying raw labels.
