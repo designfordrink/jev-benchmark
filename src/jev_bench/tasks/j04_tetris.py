@@ -116,13 +116,40 @@ class J04Tetris:
             "p95_action_latency_us":float(np.percentile(decision_latencies,95)) if decision_latencies else 0.0,
         }
 
-    def risk_coverage(self,selector,*,thresholds:Iterable[float]=(0.0,0.25,0.5,0.75,0.9,0.95,0.99),episodes:int=20,max_pieces:int=300,seed:int=0,permutation_trials:int=0)->list[dict[str,Any]]:
+    def risk_coverage(self,selector,*,thresholds:Iterable[float]=(0.0,0.25,0.5,0.75,0.9,0.95,0.99),episodes:int=20,max_pieces:int=300,seed:int=0)->list[dict[str,Any]]:
+        confidences=[]; correct=[]; regrets=[]
+        for ep in range(episodes):
+            env=TetrisEnv(seed+ep); env.reset(seed+ep)
+            while not env.game_over and env.pieces<max_pieces:
+                legal=env.legal_placements()
+                if not legal: break
+                context=env.observation()
+                utilities=np.asarray([self.teacher_score(p) for p in legal],dtype=np.float64)
+                candidate_ids=np.asarray([int(p.candidate_id) for p in legal],dtype=np.int64)
+                teacher_idx=int(np.lexsort((candidate_ids,-utilities))[0])
+                idx,confidence,_=selector.rank(context,legal)
+                confidences.append(float(confidence))
+                correct.append(int(legal[idx].candidate_id==legal[teacher_idx].candidate_id))
+                regrets.append(float(utilities[teacher_idx]-utilities[idx]))
+                rng=np.random.default_rng(seed+800000+ep*1000+env.pieces)
+                _,_,done,_=env.step(legal[int(rng.integers(len(legal)))])
+                if done: break
+        if not confidences: raise ValueError("no J04 decision states generated for risk-coverage")
+        confidences_arr=np.asarray(confidences,dtype=np.float64)
+        correct_arr=np.asarray(correct,dtype=np.float64)
+        regrets_arr=np.asarray(regrets,dtype=np.float64)
         rows=[]
         for threshold in thresholds:
             threshold=float(threshold)
             if not 0.0 <= threshold <= 1.0: raise ValueError("risk-coverage thresholds must be in [0, 1]")
-            row=self.evaluate_policy(selector,episodes=episodes,max_pieces=max_pieces,seed=seed,permutation_trials=permutation_trials,abstain_threshold=threshold)
-            rows.append({"threshold":threshold,"coverage":row["model_coverage_rate"],"risk":1.0-row["teacher_agreement_rate"],"mean_return":row["mean_return"],"mean_lines":row["mean_lines"],"fallback_rate":row["fallback_rate"],"mean_teacher_regret":row["mean_teacher_regret"]})
+            accepted=confidences_arr>=threshold
+            coverage=float(accepted.mean())
+            if accepted.any():
+                risk=float(1.0-correct_arr[accepted].mean())
+                mean_regret=float(regrets_arr[accepted].mean())
+            else:
+                risk=0.0; mean_regret=0.0
+            rows.append({"threshold":threshold,"coverage":coverage,"risk":risk,"accepted_decisions":int(accepted.sum()),"total_decisions":int(len(accepted)),"mean_teacher_regret":mean_regret})
         return rows
 
     def train_and_evaluate(self,*,model:str="tiny_mlp",hidden_units:int=8,train_episodes:int=100,test_episodes:int=50,max_train_pieces:int=80,max_test_pieces:int=300,epochs:int=20,lr:float=0.01,batch_size:int=128,seed:int=0,abstain_threshold:float=0.0,permutation_trials:int=3)->dict[str,Any]:
