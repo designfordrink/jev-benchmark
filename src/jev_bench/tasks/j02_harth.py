@@ -41,9 +41,13 @@ class J02Harth:
         elif model=="nearest_centroid": estimator=HarthNearestCentroid(n_classes=len(raw_classes)); fit_started=time.perf_counter(); estimator.fit(X_train,y_train); history={}; train_seconds=time.perf_counter()-fit_started
         else: raise ValueError(f"Unknown J02 model: {model}")
         started=time.perf_counter_ns(); probabilities=estimator.predict_proba(X_test); total_ns=time.perf_counter_ns()-started
+        probe_count=min(len(X_test),256); single_started=time.perf_counter_ns()
+        for row in X_test[:probe_count]: estimator.predict_proba(row.reshape(1,-1))
+        single_total_ns=time.perf_counter_ns()-single_started
         predicted=probabilities.argmax(axis=1); confidence=probabilities.max(axis=1); abstained=confidence<abstain_threshold
-        latency_us=(total_ns/max(1,len(X_test)))/1000.0
-        result={"task":self.name,"model":model,"test_subject":test_subject,"train_subjects":train_subjects,"seed":seed,"window_size":window_size,"stride":stride,"train_windows":len(X_train),"test_windows":len(X_test),"classes":{str(k):LABELS.get(k,str(k)) for k in raw_classes},"accuracy":float((predicted==y_test).mean()),"macro_f1":_macro_f1(y_test,predicted,len(raw_classes)),"mean_confidence":float(confidence.mean()),"abstention_rate":float(abstained.mean()),"mean_inference_latency_us":float(latency_us),"parameter_count":int(estimator.parameter_count),"model_size_bytes_fp32":int(estimator.model_size_bytes_fp32),"train_seconds":float(train_seconds),"history":history,"test_class_counts":{str(k):int((np.asarray([w.label for w in test_windows])==k).sum()) for k in test_classes},"risk_coverage":_risk_coverage(y_test,predicted,confidence)}
+        batch_latency_us=(total_ns/max(1,len(X_test)))/1000.0
+        single_latency_us=(single_total_ns/max(1,probe_count))/1000.0
+        result={"task":self.name,"model":model,"test_subject":test_subject,"train_subjects":train_subjects,"seed":seed,"window_size":window_size,"stride":stride,"train_windows":len(X_train),"test_windows":len(X_test),"classes":{str(k):LABELS.get(k,str(k)) for k in raw_classes},"accuracy":float((predicted==y_test).mean()),"macro_f1":_macro_f1(y_test,predicted,len(raw_classes)),"mean_confidence":float(confidence.mean()),"abstention_rate":float(abstained.mean()),"mean_batch_inference_latency_us":float(batch_latency_us),"mean_single_window_inference_latency_us":float(single_latency_us),"parameter_count":int(estimator.parameter_count),"model_size_bytes_fp32":int(estimator.model_size_bytes_fp32),"train_seconds":float(train_seconds),"history":history,"test_class_counts":{str(k):int((np.asarray([w.label for w in test_windows])==k).sum()) for k in test_classes},"risk_coverage":_risk_coverage(y_test,predicted,confidence)}
         if model_output is not None and hasattr(estimator,"save"):
             path=Path(model_output); path.parent.mkdir(parents=True,exist_ok=True); estimator.save(path); result["model_output"]=str(path); result["serialized_model_size_bytes"]=path.stat().st_size
         return result
