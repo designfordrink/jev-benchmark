@@ -35,3 +35,24 @@ jobs:
         with:
           name: ns01-seed-${{ matrix.seed }}
           path: results/ns01/
+
+  analyze:
+    needs: ns01
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ns01-seed-*
+          path: results/ns01
+          merge-multiple: true
+      - name: Analyze operating points
+        run: python scripts/analyze_ns01.py --root results/ns01 --output results/ns01/operating-point-analysis.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ns01-analysis
+          path: results/ns01/operating-point-analysis.json
+
