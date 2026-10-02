@@ -163,6 +163,40 @@ def independent_label(transition: Transition) -> float:
     return REWARD_LEVELS[transition.event]
 
 
+def split_transition_corpus(rows: list[Transition] | None = None, holdout_fraction: float = 0.25) -> tuple[list[Transition], list[Transition]]:
+    """Deterministic disjoint split by hashed transition identity."""
+    if not 0.0 < holdout_fraction < 1.0:
+        raise ValueError("holdout_fraction must be in (0,1)")
+    rows = list(rows if rows is not None else build_transition_corpus())
+    train, holdout = [], []
+    for t in rows:
+        raw = json.dumps({"state": t.state, "action": t.action, "next_state": t.next_state, "event": t.event}, sort_keys=True)
+        bucket = int(hashlib.sha256(raw.encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
+        (holdout if bucket < holdout_fraction else train).append(t)
+    if not train or not holdout:
+        raise RuntimeError("transition split produced an empty partition")
+    return train, holdout
+
+
+def adversarial_transitions() -> list[Transition]:
+    """Cases where a superficial state-only judge can be reward-hacked."""
+    return [
+        Transition((2, 2, 0), 1, (3, 2, 0), "wall", False),
+        Transition((4, 4, 0), 0, (4, 4, 0), "boundary", False),
+        Transition((2, 2, 1), 1, (3, 2, 1), "wall", False),
+        Transition((2, 3, 0), 0, (2, 4, 0), "move", False),
+        Transition((2, 2, 1), 0, (2, 3, 1), "lava", True),
+    ]
+
+
+def representation_variants(transition: Transition) -> list[Transition]:
+    """Semantically identical transition variants for representation robustness."""
+    return [
+        transition,
+        Transition(transition.state, transition.action, transition.next_state, transition.event, transition.terminated),
+    ]
+
+
 def build_transition_corpus() -> list[Transition]:
     """Enumerate a fixed, reproducible corpus without training an RL agent."""
     env = KeyQuestEnv()
@@ -241,7 +275,7 @@ def run_j05(provider: RewardProvider, *, episodes: int = 100, seed: int = 0) -> 
 
 
 def evaluate_judge(provider: RewardProvider, *, holdout: list[Transition] | None = None) -> dict[str, Any]:
-    rows = holdout if holdout is not None else build_transition_corpus()
+    rows = holdout if holdout is not None else split_transition_corpus()[1]
     errors, correct, confidences, abstentions = [], 0, [], 0
     for t in rows:
         j = provider.judge(t)
@@ -252,6 +286,7 @@ def evaluate_judge(provider: RewardProvider, *, holdout: list[Transition] | None
         abstentions += int(j.abstain)
     return {
         "provider": provider.name,
+        "split": "held_out",
         "examples": len(rows),
         "reward_mae": sum(errors) / len(errors),
         "exact_reward_rate": correct / len(rows),
