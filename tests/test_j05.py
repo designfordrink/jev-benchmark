@@ -1,7 +1,7 @@
 from jev_bench.envs.key_quest import KeyQuestEnv
 from jev_bench.tasks.j05_jev_rl import (
     JsonFileCache, NativeReward, RuleReward, build_transition_corpus,
-    evaluate_judge, run_j05,
+    evaluate_judge, run_j05, RewardJudgment,
 )
 
 
