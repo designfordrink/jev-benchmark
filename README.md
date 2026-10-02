@@ -1,104 +1,122 @@
 # JEV Benchmark
 
-**A reproducible research benchmark for tiny decision models.**
+**A reproducible benchmark for answering a practical systems question: when can a very small model become a useful decision-making component?**
 
 Русская версия: [README.ru.md](README.ru.md)
 
-JEV Benchmark is an open-source framework for studying whether **very small models can make useful decisions when they operate on a compact state representation and are embedded in a deterministic decision loop**.
+## North Star
 
-The project is deliberately broader than ordinary model-accuracy benchmarking. It measures not only whether a tiny model predicts correctly, but whether it can produce a **useful downstream action** under constraints such as model size, inference latency, confidence, abstention, fallback behavior and robustness to changes in candidate ordering.
+**How much useful decision-making can be moved into an extremely small model when expensive intelligence — perception, planning, supervision and constraint checking — is kept outside the runtime model?**
 
-> **Core idea**
->
-> raw data → compact state → tiny model → decision/candidate → deterministic executor → reward/feedback
+The practical goal is **not tiny models for their own sake**. The goal is to understand whether a larger external system can do the expensive work once, while a very small model performs the frequent, local and latency-sensitive decisions that can actually be deployed on cheap, low-power or resource-constrained devices.
+
+This includes an important edge/embedded use case: an external system may provide perception, planning, candidate generation or supervision during development or operation, while an ESP32-class or other constrained device only needs to run a compact decision model.
+
+JEV is one possible mechanism in this architecture. During training or evaluation, an LLM/JEV judge can provide supervision or a reward signal; at deployment time, the expensive judge does not have to run inside the device's runtime loop.
 
 ## Why this benchmark exists
 
-Large models often solve tasks by spending more compute. JEV Benchmark studies the opposite question:
+There are many benchmarks for **model quality**. There are fewer that answer the systems question we actually care about:
 
-> **How far can we push the useful behavior of a very small decision model when the surrounding system performs perception, planning and constraint enforcement?**
+> **If we deliberately move complexity outside a tiny model, how much useful end-to-end behavior can the tiny component still provide — and what do we gain by doing so?**
 
-A tiny model may only need to answer a narrow question:
+A tiny model is interesting only if the resulting system is useful. Therefore this benchmark does **not** stop at accuracy or parameter count.
 
-- which action should be taken now?
-- which legal candidate should be selected?
-- is the model confident enough to act?
-- should the decision be delegated to a fallback?
-- how much performance is lost when the model is compressed?
+It evaluates the complete chain:
 
-The central architectural principle is:
+**state construction → legal candidate generation → tiny decision → execution → downstream outcome**
 
-**the tiny model is one component of a decision system, not the whole system.**
+and, for JEV-based learning:
 
-The benchmark therefore separates:
+**environment transition → JEV judgment → reward → learning → downstream behavior**
 
-1. **Perception / state construction** — convert raw data into a compact state.
-2. **Planning / candidate generation** — generate a finite set of legal actions when appropriate.
-3. **Tiny decision model** — classify, score or rank the available choices.
-4. **Execution** — apply the selected action deterministically.
-5. **Feedback / evaluation** — measure the downstream result.
-6. **Confidence and fallback** — allow the tiny model to abstain when uncertain.
+The benchmark is designed to tell a developer:
 
-This is especially important for candidate-selection tasks: **the planner generates legal options; the tiny model selects among them.**
+- whether a tiny model is sufficient for a particular decision layer;
+- how much model capacity is actually needed;
+- what performance is lost as the model becomes smaller;
+- whether lower latency and model size compensate for that loss;
+- whether confidence and fallback can make a tiny model usable;
+- whether the decision remains robust when representation or candidate order changes;
+- whether an LLM/JEV-generated learning signal is actually useful downstream;
+- and where this architecture stops being practical.
 
-## Research questions
+## What the benchmark actually evaluates
 
-### 1. How small can the model become?
+The project has four layers of evaluation:
 
-Measure the relationship between:
+1. **Decision quality** — accuracy, reward, regret, survival, game return, legal-action rate and task-specific utility.
+2. **Tiny-model efficiency** — parameters, memory/model bytes, inference latency and capacity.
+3. **Selective reliability** — confidence, abstention, coverage and fallback behavior.
+4. **System-level usefulness** — downstream behavior under repeated decisions, robustness, learning quality, model calls, cache hits and cost where applicable.
 
-- parameter count;
-- model size;
-- inference latency;
-- task performance;
-- downstream reward.
+The benchmark therefore produces a **profile**, not a single universal score.
 
-Capacity sweeps and Pareto analysis are preferred over choosing one arbitrary model size.
+For a given task, the useful question is:
 
-### 2. When does a tiny model stop being useful?
+> **What is the smallest/cheapest operating point that still provides enough downstream utility for the intended system?**
 
-A model can often be reduced until a plateau or degradation appears. The benchmark records these transitions instead of assuming that larger models are always necessary.
+That is the practical output we want people to take away from the benchmark.
 
-### 3. Is accuracy the right metric?
+## A concrete deployment picture
 
-Not necessarily.
+A representative architecture is:
 
-Depending on the task, the benchmark measures:
+    CLOUD / SERVER / TEACHER
+    ┌──────────────────────────────┐
+    │ perception                   │
+    │ planning                     │
+    │ candidate generation        │
+    │ JEV / LLM supervision       │
+    └──────────────┬───────────────┘
+                   │ compact state / candidates
+                   ▼
+    EDGE DEVICE
+    ┌──────────────────────────────┐
+    │ tiny model                   │
+    │ local decision               │
+    └──────────────┬───────────────┘
+                   ▼
+             deterministic
+               execution
 
-- accuracy and macro-F1;
-- reward and oracle reward;
-- regret;
-- game return;
-- survival;
-- legal-action rate;
-- latency;
-- confidence;
-- abstention;
-- fallback rate.
+The point is not that every application must use this exact architecture. The benchmark makes the **boundary** measurable: which work can be moved outside the tiny model, and what remains possible inside it.
 
-A wrong candidate can have almost no downstream cost, so accuracy and regret are intentionally reported separately.
+## Core idea
 
-### 4. Can confidence make tiny models more useful?
-
-The intended pattern is:
-
+    raw data
+        ↓
+    compact state
+        ↓
     tiny model
-        |
-        +-- high confidence --> execute tiny-model decision
-        |
-        +-- low confidence --> abstain / fallback
-                                  |
-                                  +--> rule, teacher, larger model or human
+        ↓
+    decision / candidate
+        ↓
+    deterministic executor
+        ↓
+    reward / feedback
 
-This turns confidence into a system-level control variable rather than just a diagnostic.
+For candidate-selection tasks:
 
-### 5. Does the model learn the decision problem or an accidental representation?
+**the planner generates legal options; the tiny model selects among them.**
 
-Candidate-selection experiments include permutation tests. A useful selector should not change its chosen candidate merely because candidates were presented in a different order.
+For J05:
 
-### 6. What happens when the model is used repeatedly?
+**the RL agent chooses the action; JEV evaluates the resulting transition and supplies reward.**
 
-A classifier can perform well on independent samples while producing poor sequential behavior. J04 therefore evaluates a tiny selector inside a changing environment where every decision affects the next state.
+## What this makes possible
+
+The same benchmark can support questions relevant to:
+
+- embedded and IoT systems;
+- low-power edge AI;
+- latency-sensitive control;
+- robotics and local automation;
+- game agents;
+- scheduling, routing and resource allocation;
+- systems where a larger model is available during development but should not run on every local decision.
+
+The benchmark does not claim that tiny models are universally better. It is designed to discover **where the decomposition is useful, what it costs, and where it breaks**.
 
 # Benchmark architecture
 
