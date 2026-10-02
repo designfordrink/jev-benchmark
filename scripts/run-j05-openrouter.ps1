@@ -6,6 +6,8 @@ if ([string]::IsNullOrWhiteSpace($env:OPENROUTER_API_KEY)) { throw "OPENROUTER_A
 if ([string]::IsNullOrWhiteSpace($Model)) { $Model=$env:J05_JEV_MODEL }
 if ([string]::IsNullOrWhiteSpace($Model)) { $Model="jev-latest" }
 $seedArg=$Seeds -join ","
+$Provider=$env:J05_JEV_PROVIDER
+if ([string]::IsNullOrWhiteSpace($Provider)) { $Provider="jev_systemone" }
 New-Item -ItemType Directory -Force -Path "results/j05" | Out-Null
-Write-Host "Running J05 with OpenRouter model: $Model; seeds: $seedArg; episodes/seed: $Episodes"
-jev-bench j05-protocol --provider jev --model $Model --cache .cache/j05-jev.json --seeds $seedArg --episodes $Episodes --labels-output results/j05/labels-v1.json | Tee-Object -FilePath results/j05/protocol-v1.json
+Write-Host "Running J05 provider: $Provider; OpenRouter model: $Model; seeds: $seedArg; episodes/seed: $Episodes"
+jev-bench j05-protocol --provider $Provider --model $Model --cache .cache/j05-jev.json --seeds $seedArg --episodes $Episodes --labels-output results/j05/labels-v1.json | Tee-Object -FilePath results/j05/protocol-v1.json
