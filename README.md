@@ -118,7 +118,33 @@ The same benchmark can support questions relevant to:
 
 The benchmark does not claim that tiny models are universally better. It is designed to discover **where the decomposition is useful, what it costs, and where it breaks**.
 
-# Benchmark architecture
+## North Star specification
+
+The normative research specification is [docs/north-star.md](docs/north-star.md). It defines the benchmark unit as a **useful decision component inside a larger system** and requires each serious task to expose the external-work boundary, runtime decision interface, downstream outcome and resource trade-off.
+
+This changes how new tasks are selected: a task is valuable when it helps determine **whether a tiny runtime component can replace part of an expensive decision loop**, not merely when a tiny model obtains a high offline score.
+
+### From model benchmark to system benchmark
+
+```text
+expensive intelligence
+        |
+        v
+compact decision interface
+        |
+        v
+ tiny runtime model
+        |
+        v
+ downstream behavior
+        |
+        v
+system utility / cost
+```
+
+The target output is an operating-point profile: model size and latency versus downstream utility, with confidence/fallback and robustness controls where applicable.
+
+See also [docs/north-star.ru.md](docs/north-star.ru.md).\n\n# Benchmark architecture
 
 The common decision loop is:
 
