@@ -63,3 +63,9 @@ def test_confidence_fallback_replaces_abstention():
     assert result.abstain is False
     assert result.reward == 0.0
     assert provider.fallback_count == 1
+
+def test_jev_prompt_does_not_leak_event_label():
+    from jev_bench.tasks.j05_jev_rl import JEVOpenRouterReward
+    transition = build_transition_corpus()[0]
+    prompt = JEVOpenRouterReward("test-model")._prompt(transition)
+    assert f"event={transition.event}" not in prompt
