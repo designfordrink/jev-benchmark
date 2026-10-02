@@ -1,136 +1,593 @@
 # JEV Benchmark
 
-A reproducible benchmark for evaluating tiny decision models across perception, decision, control, and hierarchical decision tasks.
+**A reproducible research benchmark for tiny decision models.**
 
-## Status
+JEV Benchmark is an open-source framework for studying whether **very small models can make useful decisions when they operate on a compact state representation and are embedded in a deterministic decision loop**.
+
+The project is deliberately broader than ordinary model-accuracy benchmarking. It measures not only whether a tiny model predicts correctly, but whether it can produce a **useful downstream action** under constraints such as model size, inference latency, confidence, abstention, fallback behavior and robustness to changes in candidate ordering.
+
+> **Core idea**
+>
+> raw data → compact state → tiny model → decision/candidate → deterministic executor → reward/feedback
+
+## Why this benchmark exists
+
+Large models often solve tasks by spending more compute. JEV Benchmark studies the opposite question:
+
+> **How far can we push the useful behavior of a very small decision model when the surrounding system performs perception, planning and constraint enforcement?**
+
+A tiny model may only need to answer a narrow question:
+
+- which action should be taken now?
+- which legal candidate should be selected?
+- is the model confident enough to act?
+- should the decision be delegated to a fallback?
+- how much performance is lost when the model is compressed?
+
+The central architectural principle is:
+
+**the tiny model is one component of a decision system, not the whole system.**
+
+The benchmark therefore separates:
+
+1. **Perception / state construction** — convert raw data into a compact state.
+2. **Planning / candidate generation** — generate a finite set of legal actions when appropriate.
+3. **Tiny decision model** — classify, score or rank the available choices.
+4. **Execution** — apply the selected action deterministically.
+5. **Feedback / evaluation** — measure the downstream result.
+6. **Confidence and fallback** — allow the tiny model to abstain when uncertain.
+
+This is especially important for candidate-selection tasks: **the planner generates legal options; the tiny model selects among them.**
+
+## Research questions
+
+### 1. How small can the model become?
+
+Measure the relationship between:
+
+- parameter count;
+- model size;
+- inference latency;
+- task performance;
+- downstream reward.
+
+Capacity sweeps and Pareto analysis are preferred over choosing one arbitrary model size.
+
+### 2. When does a tiny model stop being useful?
+
+A model can often be reduced until a plateau or degradation appears. The benchmark records these transitions instead of assuming that larger models are always necessary.
+
+### 3. Is accuracy the right metric?
+
+Not necessarily.
+
+Depending on the task, the benchmark measures:
+
+- accuracy and macro-F1;
+- reward and oracle reward;
+- regret;
+- game return;
+- survival;
+- legal-action rate;
+- latency;
+- confidence;
+- abstention;
+- fallback rate.
+
+A wrong candidate can have almost no downstream cost, so accuracy and regret are intentionally reported separately.
+
+### 4. Can confidence make tiny models more useful?
+
+The intended pattern is:
+
+    tiny model
+        |
+        +-- high confidence --> execute tiny-model decision
+        |
+        +-- low confidence --> abstain / fallback
+                                  |
+                                  +--> rule, teacher, larger model or human
+
+This turns confidence into a system-level control variable rather than just a diagnostic.
+
+### 5. Does the model learn the decision problem or an accidental representation?
+
+Candidate-selection experiments include permutation tests. A useful selector should not change its chosen candidate merely because candidates were presented in a different order.
+
+### 6. What happens when the model is used repeatedly?
+
+A classifier can perform well on independent samples while producing poor sequential behavior. J04 therefore evaluates a tiny selector inside a changing environment where every decision affects the next state.
+
+# Benchmark architecture
+
+The common decision loop is:
+
+    Raw data / state
+            |
+            v
+    Compact state representation
+            |
+       +----+----+
+       |         |
+       v         v
+    Perception  Planner
+                |
+                v
+         Legal candidates
+                |
+                v
+         Tiny scorer / policy
+                |
+                v
+         Decision + confidence
+             /       \
+        confident   uncertain
+           |           |
+           v           v
+        execute     fallback
+             \       /
+              \     /
+                v
+          reward / metrics
+
+The key boundary is:
+
+**planner generates legal candidates; tiny model selects among them.**
+
+This prevents the benchmark from accidentally measuring the model's ability to invent invalid actions.
+
+# Experimental tracks
+
+| Track | Question | Example |
+|---|---|---|
+| Perception | Can a tiny model extract a useful state? | HARTH |
+| Decision | Can it choose among explicit alternatives? | J03 Candidate Selection |
+| Sequential Decision | Can repeated tiny decisions produce useful behavior? | J04 Tetris |
+| Control | Can a tiny policy stabilize an environment? | J01 CartPole |
+| Hierarchical Decision | Can tiny models participate inside larger systems? | Planned |
+
+The goal is not to optimize one dataset. The goal is to discover **where tiny decision models work, where they fail, and what system architecture makes them useful**.
+
+# Implemented tasks
+
+## J01 — CartPole
+
+J01 is the initial control vertical slice.
+
+It provides:
+
+- deterministic rule baseline;
+- tiny fixed-weight MLP size probe;
+- action latency measurement;
+- confidence measurement;
+- abstention / fallback instrumentation;
+- parameter and FP32-size accounting.
+
+J01 is primarily a systems and measurement baseline. Its tiny MLP is a fixed-weight synthetic inference-size probe, not a trained claim about CartPole performance.
+
+    jev-bench run --task j01_cartpole --policy rule --episodes 20 --seed 0
+    jev-bench sweep --task j01_cartpole --hidden-units 1,2,4,8,16,32,64 --episodes 20 --seed 0
+
+## J02 — HARTH perception
+
+J02 moves the benchmark to real sensor perception.
+
+HARTH activity recordings are converted into fixed-size windows and evaluated with subject-disjoint leave-one-subject-out (LOSO) evaluation.
+
+Default representation:
+
+- 6 acceleration channels;
+- 128 samples per window;
+- stride 128;
+- pure-label windows only;
+- subject identity preserved;
+- no subject leakage between train and test.
+
+Implemented:
+
+- streaming CSV loader;
+- schema validation;
+- manifest and inspection;
+- trainable Tiny MLP;
+- nearest-centroid baseline;
+- LOSO;
+- repeated multi-seed LOSO;
+- risk-coverage;
+- hidden-size sweep;
+- Pareto analysis;
+- single-window inference latency.
+
+A critical reproducibility rule is that **HARTH performance is never fabricated**. Synthetic CSV fixtures are used only for testing the loader and contracts. Published performance must come from an actual run on a pinned dataset.
+
+    jev-bench harth-manifest --dataset-root /path/to/harth
+    jev-bench harth-inspect --dataset-root /path/to/harth --subject S015
+
+    jev-bench harth-loso \
+      --dataset-root /path/to/harth \
+      --model tiny_mlp \
+      --hidden-units 8 \
+      --output results/j02-loso-h8.json
+
+    jev-bench harth-loso-multi-seed \
+      --dataset-root /path/to/harth \
+      --model tiny_mlp \
+      --hidden-units 8 \
+      --seeds 0,1,2,3,4 \
+      --output results/j02-loso-multi-seed-h8.json
+
+See docs/experiment-j02-harth.md.
+
+## J03 — Candidate Selection
+
+J03 introduces the central planner → tiny selector → reward pattern.
+
+The planner provides:
+
+- compact context;
+- finite legal candidate set;
+- candidate-specific features.
+
+The tiny model scores the candidates and selects one.
+
+    state
+      |
+    planner
+      |
+    legal candidates
+      |
+    tiny scorer
+      |
+    selected candidate
+      |
+    reward
+
+The current J03 problem is deliberately synthetic. Each instance contains:
+
+- a 6-dimensional context;
+- 8 candidates;
+- 6-dimensional candidate features;
+- a deterministic latent utility known to the evaluator but not to the policy.
+
+Metrics include:
+
+- selection accuracy;
+- reward;
+- oracle reward;
+- regret and p95 regret;
+- confidence;
+- abstention;
+- latency;
+- parameter count;
+- FP32 model bytes;
+- permutation invariance.
+
+The important principle is that **accuracy is not the only objective**.
+
+    jev-bench j03-train --model tiny_mlp --hidden-units 8
+    jev-bench j03-train --model linear
+    jev-bench j03-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j03-sweep.json
+
+See docs/experiment-j03-candidate-selection.md.
+
+## J04 — Sequential Tetris Candidate Selection
+
+J04 moves candidate selection from synthetic tables into a repeated, changing environment.
+
+    board state + current piece
+              |
+        legal placements
+              |
+          tiny scorer
+              |
+           placement
+              |
+         board update
+              |
+            reward
+              |
+         next decision
+
+The research environment implements:
+
+- deterministic 10×20 board;
+- seven tetromino types;
+- collision checks;
+- gravity/drop placement;
+- line clearing;
+- legal-placement generation;
+- deterministic seeding.
+
+The tiny model never invents arbitrary coordinates. The environment generates legal placements and validates the selected placement before execution.
+
+Metrics include:
+
+- mean/std game return;
+- lines cleared;
+- pieces survived;
+- teacher agreement;
+- teacher-relative regret;
+- permutation invariance;
+- legal-action rate;
+- mean/p95 decision latency;
+- parameter count;
+- FP32 model bytes;
+- confidence;
+- model coverage;
+- fallback rate;
+- expected calibration error where defined.
+
+The selective-decision protocol allows the tiny model to abstain below a confidence threshold and delegate selection to the heuristic teacher.
+
+    jev-bench j04-run --policy heuristic --episodes 20
+    jev-bench j04-run --policy random --episodes 20
+
+    jev-bench j04-train --model tiny_mlp --hidden-units 8
+
+    jev-bench j04-sweep \
+      --hidden-units 1,2,4,8,16,32,64 \
+      --output results/j04-sweep.json
+
+    jev-bench j04-risk-coverage \
+      --model tiny_mlp \
+      --hidden-units 8 \
+      --output results/j04-risk-coverage.json
+
+See docs/experiment-j04-tetris.md.
+
+> J04 is a compact research environment, not evidence of performance on a third-party Tetris implementation. The next escalation should preserve the candidate-selection contract while moving toward an established benchmark or richer simulator.
+
+# Metrics that matter
+
+The benchmark combines model-centric and system-centric measurements.
+
+### Model
+
+- parameter count;
+- FP32 parameter bytes;
+- serialized model size where available;
+- hidden width / capacity.
+
+### Inference
+
+- single-decision latency;
+- batch-amortized latency where relevant;
+- p95 latency.
+
+Single-window / single-decision latency is especially important because the project targets tiny models in frequent decision loops.
+
+### Decision quality
+
+Depending on the task:
+
+- accuracy;
+- macro-F1;
+- reward;
+- oracle reward;
+- regret;
+- game return;
+- survival;
+- lines cleared;
+- teacher agreement;
+- legal-action rate.
+
+### Confidence and selective prediction
+
+- confidence;
+- abstention rate;
+- coverage;
+- fallback rate;
+- risk-coverage curves;
+- calibration diagnostics such as ECE where defined.
+
+Confidence is currently score-derived in some tasks and **must not automatically be interpreted as a calibrated probability**.
+
+### Robustness
+
+- candidate permutation invariance;
+- subject-disjoint evaluation;
+- repeated training seeds;
+- deterministic seeds;
+- explicit class/schema validation.
+
+# Pareto analysis
+
+The benchmark does not assume that there is one universally optimal model.
+
+Capacity sweeps produce a Pareto view of:
+
+    task performance
+          ^
+          |        *
+          |     *
+          |   *
+          | *
+          +------------------> latency / model size
+
+Typical objectives are:
+
+- maximize task performance;
+- minimize inference latency;
+- minimize model size.
+
+This makes it possible to identify useful operating points and performance plateaus rather than selecting a model only by accuracy or parameter count.
+
+# Confidence, abstention and fallback
+
+A central hypothesis is that **a tiny model does not have to be correct all the time to be useful**.
+
+    confidence
+         |
+    +----+----+
+    |         |
+  above τ   below τ
+    |         |
+    v         v
+ tiny-model  abstain
+ action        |
+                v
+          fallback policy
+
+Fallback may be:
+
+- deterministic rule;
+- teacher;
+- larger model;
+- another policy;
+- eventually, a human.
+
+This creates a measurable trade-off between coverage, accepted-decision risk, fallback frequency, downstream reward and compute/latency.
+
+# Reproducibility
+
+A published result should identify at least:
+
+- task;
+- protocol;
+- dataset and version;
+- exact train/test or held-out subject list;
+- random seeds;
+- windowing / sampling parameters;
+- model architecture;
+- hidden size;
+- training hyperparameters;
+- confidence / abstention threshold;
+- result schema version.
+
+Repeated experiments retain the individual runs rather than collapsing everything into one opaque number.
+
+## Versioned result artifacts
+
+The repository uses:
+
+- jev-benchmark.result/v1 for individual benchmark results;
+- jev-benchmark.sweep/v1 for capacity / parameter sweeps.
+
+Legacy raw JSON can be normalized without rerunning the experiment:
+
+    jev-bench normalize-result --input old-result.json --output result-v1.json
+
+See docs/result-schema-v1.md.
+
+# Data provenance
+
+Datasets are external to the source repository unless explicitly stated otherwise.
+
+For HARTH, the repository provides loaders, validation and download/materialization helpers but does not commit the full dataset.
+
+The provenance question is:
+
+> **Exactly which data produced this number?**
+
+HARTH materialization manifests can record subject files, source information and SHA-256 information.
+
+# What this project is — and is not
+
+## It is
+
+- a research benchmark;
+- an executable experimental framework;
+- a common contract for tiny policies and selectors;
+- a way to compare model size, latency and downstream utility;
+- a framework for confidence-aware fallback;
+- a progressively harder sequence of tasks.
+
+## It is not
+
+- a leaderboard claiming that tiny models beat large models;
+- a collection of fabricated benchmark numbers;
+- a generic ML classification benchmark;
+- a claim that one tiny architecture is universally optimal;
+- a replacement for established real-world benchmarks.
+
+The purpose is to make the question **measurable and reproducible**.
+
+# Current status
 
 **v0.1 — first vertical slices**
 
 Implemented:
-- **J01 CartPole** — control task with deterministic rule policy, tiny-model size probe, latency/confidence/fallback metrics.
-- **J02 HARTH** — subject-aware streaming loader, trainable Tiny MLP, subject-disjoint LOSO, hidden-size sweep, risk-coverage and Pareto analysis.
-- **J03 Candidate Selection** — planner/selector separation on a synthetic decision task, with reward/regret, confidence and permutation invariance.
-- **J04 Tetris Candidate Selection** — sequential deterministic environment with legal-placement planning, trainable tiny selectors, confidence-aware abstention/fallback, calibration diagnostics and risk-coverage evaluation.
 
-J02 model training/evaluation code is implemented, but benchmark numbers still require the real HARTH CSV files. The repository never fabricates HARTH performance.
+- common policy / decision contracts;
+- versioned result schema;
+- J01 CartPole;
+- J02 HARTH data pipeline and LOSO evaluation;
+- J02 multi-seed analysis;
+- J02 capacity / Pareto analysis;
+- J03 candidate-selection mechanism;
+- J04 sequential candidate selection in Tetris;
+- confidence / abstention / fallback instrumentation;
+- permutation-invariance tests;
+- reproducibility-oriented manifests and validation;
+- CLI runners and automated tests.
 
-## Development
+The J02 code is ready to execute on real HARTH files, but **no HARTH performance number is considered a published benchmark result until it has been produced by the actual runner on the specified dataset**.
 
-```bash
-pip install -e '.[dev]'
-pytest
-jev-bench list-tasks
-```
+# Roadmap
 
-## J01
+## Near term
 
-```bash
-jev-bench run --task j01_cartpole --policy rule --episodes 20 --seed 0
-jev-bench sweep --task j01_cartpole --hidden-units 1,2,4,8,16,32,64 --episodes 20 --seed 0
-```
+1. Finish validation of the real HARTH dataset.
+2. Run J02 multi-seed LOSO on the pinned dataset.
+3. Run the full hidden-size sweep.
+4. Compare size / latency / macro-F1 Pareto points.
+5. Extend selective-prediction analysis.
+6. Preserve all results as versioned artifacts.
 
-## J02 HARTH
+## Next benchmark layer
 
-The public HARTH dataset is external to this repository. You can either use the archive downloader or, when the subject CSV files are already uploaded to Hugging Face, materialize them directly from the Hub:
+Move candidate selection beyond synthetic tables and the compact Tetris environment toward established environments such as:
 
-```bash
-jev-bench harth-hf-download --repo-id High-Light/jev-harth --output-dir data/harth
-```
+- scheduling;
+- routing;
+- games;
+- robotics simulators;
+- resource allocation;
+- browser / tool action selection.
 
-To fetch only selected subjects while inspecting the dataset:
+The important requirement is to preserve the same contract:
 
-```bash
-jev-bench harth-hf-download --repo-id High-Light/jev-harth --subjects S001,S002,S003 --output-dir data/harth
-```
+    state → legal candidates → tiny selector → execution → reward
 
-This writes normalized local `Sxxx.csv` files plus `harth-hf-manifest.json` containing the Hub file path, file revision object id when available, local SHA-256 and exact subject list. The normal J02 loader then consumes `data/harth` unchanged.
+## Longer-term research questions
 
-The public HARTH dataset is external to this repository. After downloading a pinned release:
+- Where is the useful lower bound on model size?
+- Do small models benefit disproportionately from good state compression?
+- Is candidate selection easier to compress than direct policy learning?
+- How much can confidence + fallback compensate for model capacity?
+- Does a tiny model become more useful when a planner guarantees legal actions?
+- Which invariances are essential for robust tiny selectors?
+- Where do performance plateaus appear as model capacity increases?
+- How much energy / compute can be saved for a given downstream utility?
+- Which task families genuinely favor tiny decision models?
 
-```bash
-jev-bench harth-manifest --dataset-root /path/to/harth
-jev-bench harth-inspect --dataset-root /path/to/harth --subject S015
-```
+# Development
 
-See `docs/experiment-j02-harth.md`.
+Requires Python 3.10+.
 
-## Research rule
+    pip install -e '.[dev]'
+    pytest
+    jev-bench list-tasks
 
-A benchmark result must come from an actual runner execution. Synthetic fixtures are used only for tests of parsing, contracts and invariants; they are never presented as HARTH performance.
+The reference implementations currently use NumPy so that the experimental logic remains transparent and reproducible.
 
-## J02 multi-subject benchmark
+# Repository structure
 
-Run LOSO on all subjects:
+    src/jev_bench/
+    ├── core/          # contracts, candidates, versioned results
+    ├── datasets/      # dataset loaders, manifests and validation
+    ├── policies/      # tiny models and baselines
+    ├── envs/          # research environments
+    ├── tasks/         # J01–J04 experiment implementations
+    └── cli.py         # command-line benchmark runner
 
-```bash
-jev-bench harth-loso --dataset-root /path/to/harth --model tiny_mlp --hidden-units 8 --output results/j02-loso-h8.json
-```
+    docs/
+    ├── experiment-j02-harth.md
+    ├── experiment-j03-candidate-selection.md
+    ├── experiment-j04-tetris.md
+    └── result-schema-v1.md
 
-## J02 multi-subject benchmark
+    tests/             # deterministic unit / contract tests
 
-Run LOSO on all subjects:
+# License / status
 
-```bash
-jev-bench harth-loso --dataset-root /path/to/harth --model tiny_mlp --hidden-units 8 --output results/j02-loso-h8.json
-```
-
-Run repeated LOSO with several training seeds:
-
-```bash
-jev-bench harth-loso-multi-seed --dataset-root /path/to/harth --model tiny_mlp --hidden-units 8 --seeds 0,1,2,3,4 --output results/j02-loso-multi-seed-h8.json
-```
-
-The multi-seed report keeps per-seed LOSO results and separately reports seed variance plus per-subject variance across seeds. It is the preferred protocol for published Tiny MLP stability measurements.
-
-Run the size sweep across subjects:
-
-```bash
-jev-bench harth-loso-sweep --dataset-root /path/to/harth --hidden-units 1,2,4,8,16,32,64 --output results/j02-loso-sweep.json
-```
-
-The LOSO summary reports per-subject results, mean/std metrics and an aggregate risk-coverage curve. The size sweep also computes the Pareto front over macro-F1, inference latency and FP32 parameter bytes.
-
-## J03 Candidate Selection
-
-The first decision-track task separates candidate generation from candidate ranking. The planner supplies legal candidates; the tiny scorer ranks them, and the evaluator measures reward, regret, confidence, latency and candidate-order invariance.
-
-```bash
-jev-bench j03-train --model tiny_mlp --hidden-units 8
-jev-bench j03-train --model linear
-jev-bench j03-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j03-sweep.json
-```
-
-See `docs/experiment-j03-candidate-selection.md`.
-
-## J04 Real Tetris Candidate Selection
-
-J04 moves candidate selection from synthetic tables into a deterministic sequential Tetris environment. The environment generates legal placements; the tiny model ranks them; evaluation measures actual game return, lines, survival, regret, permutation invariance, latency and model size.
-
-```bash
-jev-bench j04-run --policy heuristic --episodes 20
-jev-bench j04-run --policy random --episodes 20
-jev-bench j04-train --model tiny_mlp --hidden-units 8
-jev-bench j04-sweep --hidden-units 1,2,4,8,16,32,64 --output results/j04-sweep.json
-jev-bench j04-risk-coverage --model tiny_mlp --hidden-units 8 --output results/j04-risk-coverage.json
-```
-
-J04 also supports `--abstain-threshold` on `j04-train`: low-confidence selector decisions fall back to the heuristic teacher. See `docs/experiment-j04-tetris.md` for the selective-decision protocol.
-
-See `docs/experiment-j04-tetris.md`.
-
-
-## Versioned result artifacts
-
-All benchmark run commands now emit the shared `jev-benchmark.result/v1` schema. Size sweeps use `jev-benchmark.sweep/v1`, with every run stored as a versioned result object.
-
-Existing raw JSON from earlier commits can be migrated without rerunning the experiment:
-
-```bash
-jev-bench normalize-result --input old-result.json --output result-v1.json
-```
-
-See `docs/result-schema-v1.md`.
-
-## Reproducibility
-
-For J02 multi-seed experiments, record the dataset version, exact held-out subject list, seed list and all training hyperparameters in the result artifact. The benchmark intentionally does not publish fabricated HARTH numbers.
+This repository is an active research project. The benchmark protocol and task suite are expected to evolve as experiments reveal which measurements and controls are actually necessary.
