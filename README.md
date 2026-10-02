@@ -2,7 +2,9 @@
 
 **A reproducible research benchmark for tiny decision models.**
 
-Русская версия: [README.ru.md](README.ru.md)\n\nJEV Benchmark is an open-source framework for studying whether **very small models can make useful decisions when they operate on a compact state representation and are embedded in a deterministic decision loop**.
+Русская версия: [README.ru.md](README.ru.md)
+
+JEV Benchmark is an open-source framework for studying whether **very small models can make useful decisions when they operate on a compact state representation and are embedded in a deterministic decision loop**.
 
 The project is deliberately broader than ordinary model-accuracy benchmarking. It measures not only whether a tiny model predicts correctly, but whether it can produce a **useful downstream action** under constraints such as model size, inference latency, confidence, abstention, fallback behavior and robustness to changes in candidate ordering.
 
