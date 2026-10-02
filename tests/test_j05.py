@@ -1,7 +1,9 @@
-from jev_bench.envs.key_quest import KeyQuestEnv
+from jev_bench.envs.key_quest import KeyQuestEnv, Transition
 from jev_bench.tasks.j05_jev_rl import (
-    JsonFileCache, NativeReward, RuleReward, build_transition_corpus,
-    evaluate_judge, run_j05,
+    ConfidenceFallback, JsonFileCache, JEVSystemOneReward, NativeReward,
+    REWARD_LEVELS, RewardJudgment, RuleReward, adversarial_transitions,
+    build_transition_corpus, evaluate_judge, representation_variants,
+    run_j05, split_transition_corpus,
 )
 
 
@@ -63,3 +65,24 @@ def test_confidence_fallback_replaces_abstention():
     assert result.abstain is False
     assert result.reward == 0.0
     assert provider.fallback_count == 1
+
+def test_systemone_state_does_not_contain_hidden_event():
+    t = adversarial_transitions()[0]
+    state = JEVSystemOneReward._state(t)
+    assert "event" not in state
+    assert state["state"] == t.state
+    assert state["next_state"] == t.next_state
+
+
+def test_systemone_questions_are_fixed_choice_contract():
+    question = JEVSystemOneReward._questions()["event"]
+    assert question["type"] == "choice"
+    assert set(question["criteria"]) == set(REWARD_LEVELS)
+
+
+def test_cache_key_does_not_depend_on_hidden_event():
+    t = adversarial_transitions()[0]
+    alternative = Transition(t.state, t.action, t.next_state, "move", t.terminated)
+    assert JsonFileCache.key(t, "typesafe/jev-1.13", "j05-systemone-v1") == JsonFileCache.key(
+        alternative, "typesafe/jev-1.13", "j05-systemone-v1"
+    )
