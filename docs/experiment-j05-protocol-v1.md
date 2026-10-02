@@ -2,7 +2,7 @@
 
 The next J05 stage is not another environment. It is a stricter experiment around the existing Key Quest environment.
 
-The protocol follows the main limitation identified by the JevRL reference experiment: successful RL training alone does not establish that a model judge is superior to a deterministic reward design. The reference experiment explicitly calls for stronger tuned baselines, more seeds, independently collected score tables, and tasks whose rubrics are less directly reproducible by a few rules. citeturn0search0
+The protocol follows the main limitation identified by the JevRL reference experiment: successful RL training alone does not establish that a model judge is superior to a deterministic reward design. The reference experiment explicitly calls for stronger tuned baselines, more seeds, independently collected score tables, and tasks whose rubrics are less directly reproducible by a few rules.
 
 ## 1. Independent held-out reward labels
 
