@@ -3,6 +3,8 @@
 ## Purpose
 Use Bring-AI/jev-rl as a reference RL reward task inside the benchmark, without replacing the existing J01–J04 suite.
 
+J05 is explicitly aligned with the project North Star: it tests whether expensive intelligence can be moved to the learning/supervision layer while the eventual runtime policy remains compact. The benchmark therefore separates **reward-judge quality**, **downstream learning quality** and **runtime/system cost** instead of treating JEV itself as the product.
+
 Reference project: https://github.com/Bring-AI/jev-rl
 
 The benchmark should test a stronger question than whether an LLM can judge a transition:
@@ -146,3 +148,39 @@ This turns jev-rl from a standalone demonstration into a controlled benchmark co
 
 The central experiment becomes:
 > When an RL system needs a reward function that is difficult to hand-code, how useful, reliable, robust and economical is JEV as a substitute learning signal?
+
+## North Star interpretation
+
+J05 is not primarily a benchmark of whether an LLM can understand Key Quest.
+
+Its systems question is:
+
+> **Can an expensive external judge provide enough useful supervision during development that the resulting runtime decision policy can remain cheap?**
+
+The deployment boundary is therefore:
+
+```
+JEV / LLM judge (expensive, outside runtime)
+             |
+             v
+       reward / supervision
+             |
+             v
+          RL learner
+             |
+             v
+     compact runtime policy
+             |
+             v
+          environment
+```
+
+A successful J05 result must preserve this distinction. JEV calls, tokens and latency belong to the external learning/supervision budget; runtime policy size and inference latency belong to the deployment budget.
+
+The final report should therefore answer three separate questions:
+
+- **Learning:** did the external reward signal produce useful learning?
+- **Deployment:** how small/cheap can the resulting runtime policy become while retaining useful behavior?
+- **System trade-off:** what external supervision cost was required to obtain that deployment point?
+
+A high-quality JEV judge with an oversized runtime policy is not sufficient evidence for the North Star. Conversely, a small policy with poor downstream behavior is also not sufficient.
