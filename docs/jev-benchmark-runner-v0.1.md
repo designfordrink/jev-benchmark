@@ -55,3 +55,37 @@ jev-bench harth-sweep --dataset-root /path/to/harth --test-subject S015 --hidden
 4. Escalate J04 from the self-contained Tetris simulator to an established benchmark while preserving the legal-candidate/executor contract.
 5. Build the cross-task Pareto report from the shared v1 result artifacts.
 
+
+
+## North Star alignment
+
+The runner treats each benchmark task as a **decision component inside a larger system**, not merely as a model-evaluation problem.
+
+Every new task should make explicit:
+
+1. **External work** — what perception, planning, candidate generation, supervision or constraint checking is performed outside the tiny runtime component.
+2. **Runtime boundary** — exactly what input the tiny component receives and what decision it must return.
+3. **Downstream outcome** — what happens after the decision and which system-level metric determines usefulness.
+4. **Resource constraint** — model size, memory, latency or energy proxy relevant to deployment.
+5. **Failure handling** — confidence, abstention, fallback or escalation when the tiny component is uncertain.
+6. **Robustness controls** — held-out data, representation changes, candidate-order changes, seeds or adversarial cases appropriate to the task.
+
+A task is not complete merely because a tiny model achieves a good offline score. It must show how that score translates into downstream system utility and what operating point remains viable as the model is made smaller.
+
+### Required task report
+
+For new tasks, prefer a report of the form:
+
+```
+external work
+    -> compact decision interface
+    -> tiny runtime component
+    -> downstream outcome
+
+capacity / size / latency
+    -> decision quality
+    -> selective reliability
+    -> system utility
+```
+
+The primary output is a **trade-off profile / operating-point frontier**, not a universal scalar score.
