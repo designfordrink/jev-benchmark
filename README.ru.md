@@ -345,6 +345,74 @@ Tiny model не придумывает произвольные координа
 
 > J04 — компактная исследовательская среда, а не доказательство качества на сторонней реализации Tetris. Следующий шаг — сохранить тот же candidate-selection contract и перейти к established benchmark или более богатому simulator.
 
+## J05 — JEV Reward RL
+
+J05 добавляет второй способ использования JEV: **не как selector действия, а как judge/reward provider, который формирует learning signal для RL-агента**.
+
+Цикл benchmark:
+
+    RL agent
+        |
+        v
+      action
+        |
+        v
+    environment transition
+        |
+        v
+      JEV judge
+        |
+        v
+      reward
+        |
+        v
+     RL update
+
+В этом эксперименте JEV **не выбирает действие**. Один и тот же learner и одна и та же среда сравниваются при разных reward providers.
+
+### Что уже реализовано
+
+J05 сейчас содержит:
+
+- deterministic Key Quest environment;
+- native environment reward;
+- hand-written rule reward;
+- OpenRouter-backed JEV-style probabilistic reward provider;
+- persistent cache для reward judgments;
+- judge evaluation CLI;
+- tabular Q-learning runner;
+- deterministic и cache/regression tests;
+- документацию J05 по implementation и evaluation protocol.
+
+JEV adapter использует `OPENROUTER_API_KEY` и явно заданную модель.
+
+### Научное разделение
+
+J05 разделяет три разных вопроса:
+
+1. **Judge quality** — насколько полезно JEV оценивает held-out transitions?
+2. **Learning quality** — способен ли один и тот же RL learner обучаться на этих rewards?
+3. **Systems cost** — сколько требуется model calls, cache hits, времени и tokens/dollars?
+
+Эти измерения не сворачиваются в один общий score.
+
+### Следующие необходимые controls
+
+Реализация расширяется в сторону:
+
+- фиксированных train/holdout transition splits;
+- независимых versioned transition labels;
+- confidence-based abstention/escalation;
+- adversarial reward-hacking cases;
+- representation-robustness tests;
+- multi-seed aggregation;
+- проверки live-vs-cache equivalence;
+- cost accounting в общем result schema.
+
+Таким образом, J05 — это отдельный **reward-learning benchmark layer**: он проверяет не только способность LLM/JEV выдавать правдоподобное суждение, но и полезность этого learning signal для последующего обучения.
+
+Подробнее: `docs/experiment-j05-jev-rl.md` и `docs/experiment-j05-implementation.md`.
+
 # Что измеряем
 
 Benchmark объединяет model-centric и system-centric metrics.
@@ -504,9 +572,9 @@ HARTH manifests могут фиксировать subject files, source informat
 
 # Текущее состояние
 
-**v0.1 — первые vertical slices**
+**v0.1 — первые vertical slices, теперь расширенные reward-learning слоем**
 
-Уже реализованы:
+Уже реализованы в `main`:
 
 - общие policy / decision contracts;
 - versioned result schema;
@@ -514,13 +582,21 @@ HARTH manifests могут фиксировать subject files, source informat
 - J02 HARTH pipeline и LOSO;
 - J02 multi-seed analysis;
 - J02 capacity / Pareto analysis;
+- HARTH Hugging Face archive/materialization helpers и provenance manifests;
 - J03 candidate selection;
 - J04 sequential candidate selection;
 - confidence / abstention / fallback instrumentation;
 - permutation-invariance tests;
-- manifests и validation;
-- CLI runners;
-- automated tests.
+- reproducibility-oriented validation;
+- **J05 JEV Reward RL** с native/rules/JEV reward providers;
+- J05 persistent cache, judge evaluation и tabular Q-learning;
+- CLI runners, документация и automated tests.
+
+### Текущий статус интеграции
+
+- **PR #5 открыт:** real HARTH validation и Windows runner для 22 локальных HARTH subject files пользователя.
+- PR #5 — это именно **validation/smoke-run этап**, а не опубликованный HARTH benchmark result.
+- Реализация J05 уже находится в `main`; полный held-out/adversarial/multi-seed reward-learning protocol — следующий исследовательский increment.
 
 J02 код готов работать с реальными HARTH CSV, но **число считается benchmark result только после фактического запуска runner на зафиксированном dataset**.
 
@@ -528,12 +604,15 @@ J02 код готов работать с реальными HARTH CSV, но **�
 
 ## Ближайшие шаги
 
-1. Завершить validation реального HARTH dataset.
-2. Выполнить J02 multi-seed LOSO.
+1. Завершить PR с validation/smoke-run реального HARTH и зафиксировать provenance dataset.
+2. Выполнить J02 multi-seed LOSO на зафиксированном наборе из 22 subjects.
 3. Выполнить полный hidden-size sweep.
 4. Построить size / latency / macro-F1 Pareto front.
 5. Расширить selective-prediction analysis.
 6. Сохранять результаты как versioned artifacts.
+7. Завершить J05 held-out reward-fidelity evaluation.
+8. Добавить J05 confidence/abstention, reward-hacking и representation-robustness controls.
+9. Добавить J05 multi-seed и live-vs-cache/cost reports.
 
 ## Следующий уровень
 
@@ -579,13 +658,15 @@ J02 код готов работать с реальными HARTH CSV, но **�
     ├── datasets/      # loaders, manifests, validation
     ├── policies/      # tiny models и baselines
     ├── envs/          # research environments
-    ├── tasks/         # J01–J04
+    ├── tasks/         # J01–J05
     └── cli.py         # CLI benchmark runner
 
     docs/
     ├── experiment-j02-harth.md
     ├── experiment-j03-candidate-selection.md
     ├── experiment-j04-tetris.md
+    ├── experiment-j05-jev-rl.md
+    ├── experiment-j05-implementation.md
     └── result-schema-v1.md
 
     tests/             # deterministic unit / contract tests
