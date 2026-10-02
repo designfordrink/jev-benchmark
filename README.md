@@ -338,6 +338,74 @@ See docs/experiment-j04-tetris.md.
 
 > J04 is a compact research environment, not evidence of performance on a third-party Tetris implementation. The next escalation should preserve the candidate-selection contract while moving toward an established benchmark or richer simulator.
 
+## J05 — JEV Reward RL
+
+J05 adds a second way to use JEV: **not as the action selector, but as a reward/judge that supplies a learning signal to an RL agent**.
+
+The benchmark loop is:
+
+    RL agent
+        |
+        v
+      action
+        |
+        v
+    environment transition
+        |
+        v
+      JEV judge
+        |
+        v
+      reward
+        |
+        v
+     RL update
+
+JEV does **not** choose the action in this experiment. The same learner and environment are compared under different reward providers.
+
+### Current implementation
+
+J05 currently contains:
+
+- deterministic Key Quest environment;
+- native environment reward;
+- hand-written rule reward;
+- OpenRouter-backed JEV-style probabilistic reward provider;
+- persistent reward-judgment cache;
+- judge evaluation CLI;
+- tabular Q-learning runner;
+- deterministic and cache/regression tests;
+- J05 implementation and evaluation documentation.
+
+The JEV adapter uses `OPENROUTER_API_KEY` and an explicitly selected model.
+
+### Scientific separation
+
+J05 deliberately separates three questions:
+
+1. **Judge quality** — does JEV assign useful rewards to held-out transitions?
+2. **Learning quality** — can the same RL learner learn from those rewards?
+3. **Systems cost** — how many model calls, cache hits, milliseconds and tokens/dollars are required?
+
+The benchmark does not collapse these dimensions into one score.
+
+### Required next controls
+
+The implementation is being extended toward:
+
+- fixed train/holdout transition splits;
+- independent versioned transition labels;
+- confidence-based abstention/escalation;
+- adversarial reward-hacking cases;
+- representation-robustness tests;
+- multi-seed aggregation;
+- live-vs-cache equivalence;
+- cost accounting in the common result schema.
+
+J05 is therefore a **reward-learning benchmark layer**: it asks whether an LLM/JEV-generated learning signal is useful downstream, not merely whether an LLM can produce plausible judgments.
+
+See `docs/experiment-j05-jev-rl.md` and `docs/experiment-j05-implementation.md`.
+
 # Metrics that matter
 
 The benchmark combines model-centric and system-centric measurements.
@@ -505,9 +573,9 @@ The purpose is to make the question **measurable and reproducible**.
 
 # Current status
 
-**v0.1 — first vertical slices**
+**v0.1 — first vertical slices, now extended with reward-learning**
 
-Implemented:
+Implemented on `main`:
 
 - common policy / decision contracts;
 - versioned result schema;
@@ -515,12 +583,21 @@ Implemented:
 - J02 HARTH data pipeline and LOSO evaluation;
 - J02 multi-seed analysis;
 - J02 capacity / Pareto analysis;
+- HARTH Hugging Face archive/materialization helpers and provenance manifests;
 - J03 candidate-selection mechanism;
 - J04 sequential candidate selection in Tetris;
 - confidence / abstention / fallback instrumentation;
 - permutation-invariance tests;
-- reproducibility-oriented manifests and validation;
-- CLI runners and automated tests.
+- reproducibility-oriented validation;
+- **J05 JEV Reward RL** with native/rules/JEV reward providers;
+- J05 persistent cache, judge evaluation and tabular Q-learning;
+- CLI runners, documentation and automated tests.
+
+### Current integration status
+
+- **PR #5 is open:** real HARTH validation and a Windows runner for the user's 22 local HARTH subject files.
+- PR #5 is explicitly a **smoke-run/validation step**, not a published HARTH result.
+- J05 implementation is already present on `main`; the full held-out/adversarial/multi-seed reward-learning protocol remains the next research increment.
 
 The J02 code is ready to execute on real HARTH files, but **no HARTH performance number is considered a published benchmark result until it has been produced by the actual runner on the specified dataset**.
 
@@ -528,12 +605,15 @@ The J02 code is ready to execute on real HARTH files, but **no HARTH performance
 
 ## Near term
 
-1. Finish validation of the real HARTH dataset.
-2. Run J02 multi-seed LOSO on the pinned dataset.
+1. Finish the real HARTH validation/smoke-run PR and pin the actual dataset provenance.
+2. Run J02 multi-seed LOSO on the pinned 22-subject dataset.
 3. Run the full hidden-size sweep.
 4. Compare size / latency / macro-F1 Pareto points.
 5. Extend selective-prediction analysis.
 6. Preserve all results as versioned artifacts.
+7. Complete J05 held-out reward-fidelity evaluation.
+8. Add J05 confidence/abstention, reward-hacking and representation-robustness controls.
+9. Add J05 multi-seed and live-vs-cache/cost reports.
 
 ## Next benchmark layer
 
@@ -579,13 +659,15 @@ The reference implementations currently use NumPy so that the experimental logic
     ├── datasets/      # dataset loaders, manifests and validation
     ├── policies/      # tiny models and baselines
     ├── envs/          # research environments
-    ├── tasks/         # J01–J04 experiment implementations
+    ├── tasks/         # J01–J05 experiment implementations
     └── cli.py         # command-line benchmark runner
 
     docs/
     ├── experiment-j02-harth.md
     ├── experiment-j03-candidate-selection.md
     ├── experiment-j04-tetris.md
+    ├── experiment-j05-jev-rl.md
+    ├── experiment-j05-implementation.md
     └── result-schema-v1.md
 
     tests/             # deterministic unit / contract tests
