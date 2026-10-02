@@ -95,3 +95,31 @@ jev-bench normalize-result   --input old-result.json   --protocol sequential-tra
 The schema does not make unlike metrics automatically comparable. For example, J02 macro-F1, J03 selection accuracy and J04 game return remain task-specific metrics. The schema only gives them a common transport and metadata contract.
 
 In particular, confidence-derived metrics must retain their evaluation context. J04 ECE is teacher-relative calibration diagnostic; it is not represented as a universal calibrated-probability claim.
+
+## North Star system metadata
+
+The v1 schema remains backward-compatible, but new task runners should populate `extra.system` when the information is available. This records the system boundary needed to interpret tiny-model results:
+
+```json
+{
+  "extra": {
+    "system": {
+      "external_work": ["perception", "planner"],
+      "runtime_role": "candidate_selector",
+      "decision_interface": "compact_state_and_legal_candidates",
+      "downstream_outcome": "task_reward",
+      "fallback": "heuristic",
+      "deployment_constraints": {
+        "max_model_bytes": 4096,
+        "max_latency_us": 1000
+      }
+    }
+  }
+}
+```
+
+These fields are descriptive metadata, not a new aggregate score. They make it possible to compare experiments by **system decomposition** and identify which results are relevant to a concrete deployment constraint.
+
+For JEV-based tasks, `external_work` should distinguish expensive judge/supervision calls from the runtime policy. JEV calls, tokens and external latency must not be silently counted as runtime model size or runtime inference latency.
+
+A future schema revision may promote these fields into first-class versioned fields once multiple real deployment tasks require them.
