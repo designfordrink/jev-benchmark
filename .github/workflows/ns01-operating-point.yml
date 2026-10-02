@@ -1,0 +1,37 @@
+name: NS-01 operating point
+
+on:
+  push:
+    paths:
+      - ".github/workflows/ns01-operating-point.yml"
+      - "src/**"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+jobs:
+  ns01:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e .
+      - name: Reference
+        run: |
+          mkdir -p results/ns01
+          jev-bench j04-run --policy heuristic --episodes 50 --max-pieces 300 --seed ${{ matrix.seed }} > results/ns01/reference-seed-${{ matrix.seed }}.json
+      - name: Tiny-model sweep
+        run: |
+          jev-bench j04-sweep --hidden-units 1,2,4,8,16,32,64 --train-episodes 100 --test-episodes 50 --max-train-pieces 80 --max-test-pieces 300 --epochs 20 --seed ${{ matrix.seed }} --output results/ns01/sweep-seed-${{ matrix.seed }}.json
+      - name: Risk coverage
+        run: |
+          jev-bench j04-risk-coverage --model tiny_mlp --hidden-units 8 --train-episodes 100 --test-episodes 50 --max-train-pieces 80 --max-test-pieces 300 --epochs 20 --seed ${{ matrix.seed }} --output results/ns01/risk-coverage-seed-${{ matrix.seed }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ns01-seed-${{ matrix.seed }}
+          path: results/ns01/
