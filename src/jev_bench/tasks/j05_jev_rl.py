@@ -133,8 +133,10 @@ class JEVOpenRouterReward:
         return (
             "You are a reward judge for a deterministic gridworld. "
             "Return JSON only with probabilities for exactly these events: "
-            f"{', '.join(REWARD_LEVELS)}. The observed transition is "
-            f"state={t.state}, action={t.action}, next_state={t.next_state}, event={t.event}, "
+            f"{', '.join(REWARD_LEVELS)}. Judge the outcome of the transition from "
+            "the observed state, action, next_state and termination flag. "
+            "Do not assume or receive a hidden event label. The observed transition is "
+            f"state={t.state}, action={t.action}, next_state={t.next_state}, "
             "terminated=" + str(t.terminated).lower() +
             ". Probabilities must sum to 1."
         )
