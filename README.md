@@ -120,6 +120,8 @@ The benchmark does not claim that tiny models are universally better. It is desi
 
 ## North Star specification
 
+**Next concrete experiment:** [docs/experiment-ns01-operating-point.md](docs/experiment-ns01-operating-point.md) turns the North Star into the first measurable operating-point study using J04 Tetris.
+
 The normative research specification is [docs/north-star.md](docs/north-star.md). It defines the benchmark unit as a **useful decision component inside a larger system** and requires each serious task to expose the external-work boundary, runtime decision interface, downstream outcome and resource trade-off.
 
 This changes how new tasks are selected: a task is valuable when it helps determine **whether a tiny runtime component can replace part of an expensive decision loop**, not merely when a tiny model obtains a high offline score.
