@@ -153,7 +153,8 @@ class JEVOpenRouterReward:
             latency_ms=(time.perf_counter() - started) * 1000,
         )
         if key and self.cache:
-            self.cache.put(key, {**judgment.__dict__, "probabilities": probs})
+            cached_payload = {k: v for k, v in judgment.__dict__.items() if k != "cached"}
+            self.cache.put(key, cached_payload)
         self.calls += 1
         return judgment
 
