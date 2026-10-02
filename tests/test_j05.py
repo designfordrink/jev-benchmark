@@ -34,3 +34,20 @@ def test_rl_runner_is_reproducible():
     b = run_j05(NativeReward(), episodes=30, seed=7)
     assert a["success_rate"] == b["success_rate"]
     assert a["mean_return"] == b["mean_return"]
+
+
+def test_train_holdout_split_is_disjoint_and_nonempty():
+    train, holdout = split_transition_corpus()
+    assert train and holdout
+    assert set(train).isdisjoint(set(holdout))
+
+
+def test_adversarial_cases_have_explicit_labels():
+    cases = adversarial_transitions()
+    assert len(cases) >= 5
+    assert all(t.event for t in cases)
+
+
+def test_representation_variants_preserve_semantics():
+    for t in adversarial_transitions():
+        assert all(v.event == t.event and v.next_state == t.next_state for v in representation_variants(t))
