@@ -51,3 +51,15 @@ def test_adversarial_cases_have_explicit_labels():
 def test_representation_variants_preserve_semantics():
     for t in adversarial_transitions():
         assert all(v.event == t.event and v.next_state == t.next_state for v in representation_variants(t))
+
+
+def test_confidence_fallback_replaces_abstention():
+    class Abstaining:
+        name = "mock_jev"
+        def judge(self, transition):
+            return RewardJudgment(0.0, 0.2, abstain=True, source=self.name)
+    provider = ConfidenceFallback(Abstaining(), threshold=0.6)
+    result = provider.judge(adversarial_transitions()[0])
+    assert result.abstain is False
+    assert result.reward == 0.0
+    assert provider.fallback_count == 1
