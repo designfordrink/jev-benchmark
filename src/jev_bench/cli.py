@@ -29,8 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
     j04=sub.add_parser("j04-run"); j04.add_argument("--policy",choices=["heuristic","random"],default="heuristic"); j04.add_argument("--episodes",type=int,default=20); j04.add_argument("--max-pieces",type=int,default=300); j04.add_argument("--seed",type=int,default=0); j04.add_argument("--permutation-trials",type=int,default=3);
     j04t=sub.add_parser("j04-train"); j04t.add_argument("--model",choices=["tiny_mlp","linear"],default="tiny_mlp"); j04t.add_argument("--hidden-units",type=int,default=8); j04t.add_argument("--train-episodes",type=int,default=100); j04t.add_argument("--test-episodes",type=int,default=20); j04t.add_argument("--max-train-pieces",type=int,default=80); j04t.add_argument("--max-test-pieces",type=int,default=300); j04t.add_argument("--epochs",type=int,default=20); j04t.add_argument("--lr",type=float,default=0.01); j04t.add_argument("--batch-size",type=int,default=128); j04t.add_argument("--seed",type=int,default=0); j04t.add_argument("--abstain-threshold",type=float,default=0.0); j04t.add_argument("--permutation-trials",type=int,default=3); j04t.add_argument("--output");
     j04s=sub.add_parser("j04-sweep"); j04s.add_argument("--hidden-units",default="1,2,4,8,16,32,64"); j04s.add_argument("--train-episodes",type=int,default=100); j04s.add_argument("--test-episodes",type=int,default=20); j04s.add_argument("--max-train-pieces",type=int,default=80); j04s.add_argument("--max-test-pieces",type=int,default=300); j04s.add_argument("--epochs",type=int,default=20); j04s.add_argument("--lr",type=float,default=0.01); j04s.add_argument("--batch-size",type=int,default=128); j04s.add_argument("--seed",type=int,default=0); j04s.add_argument("--abstain-threshold",type=float,default=0.0); j04s.add_argument("--permutation-trials",type=int,default=3); j04s.add_argument("--output");
-    j05=sub.add_parser("j05-run"); j05.add_argument("--provider",choices=["native","rules","jev","jev_systemone"],default="native"); j05.add_argument("--episodes",type=int,default=100); j05.add_argument("--seed",type=int,default=0); j05.add_argument("--model",default="inclusionai/ling-3.0-flash-vl"); j05.add_argument("--cache"); j05.add_argument("--holdout",action="store_true")
-    j05j=sub.add_parser("j05-judge"); j05j.add_argument("--provider",choices=["native","rules","jev","jev_systemone"],default="native"); j05j.add_argument("--model",default="inclusionai/ling-3.0-flash-vl"); j05j.add_argument("--cache")
+    j05=sub.add_parser("j05-run"); j05.add_argument("--provider",choices=["native","rules","jev","jev_systemone"],default="native"); j05.add_argument("--episodes",type=int,default=100); j05.add_argument("--seed",type=int,default=0); j05.add_argument("--model",default="typesafe/jev-1.13"); j05.add_argument("--cache"); j05.add_argument("--holdout",action="store_true")
+    j05p=sub.add_parser("j05-protocol"); j05p.add_argument("--provider",choices=["native","rules","jev","jev_systemone"],default="native"); j05p.add_argument("--model",default="typesafe/jev-1.13"); j05p.add_argument("--cache"); j05p.add_argument("--seeds",default="0,1,2,3,4"); j05p.add_argument("--episodes",type=int,default=100); j05p.add_argument("--labels-output")
+    j05j=sub.add_parser("j05-judge"); j05j.add_argument("--provider",choices=["native","rules","jev","jev_systemone"],default="native"); j05j.add_argument("--model",default="typesafe/jev-1.13"); j05j.add_argument("--cache")
     j04r=sub.add_parser("j04-risk-coverage"); j04r.add_argument("--model",choices=["tiny_mlp","linear"],default="tiny_mlp"); j04r.add_argument("--hidden-units",type=int,default=8); j04r.add_argument("--train-episodes",type=int,default=100); j04r.add_argument("--test-episodes",type=int,default=20); j04r.add_argument("--max-train-pieces",type=int,default=80); j04r.add_argument("--max-test-pieces",type=int,default=300); j04r.add_argument("--epochs",type=int,default=20); j04r.add_argument("--lr",type=float,default=0.01); j04r.add_argument("--batch-size",type=int,default=128); j04r.add_argument("--seed",type=int,default=0); j04r.add_argument("--thresholds",default="0,0.25,0.5,0.75,0.9,0.95,0.99"); j04r.add_argument("--output");
     return parser
 
@@ -113,6 +114,17 @@ def main()->int:
         cache=JsonFileCache(args.cache) if args.cache else None
         provider=(NativeReward() if args.provider=="native" else RuleReward() if args.provider=="rules" else JEVOpenRouterReward(args.model,cache=cache) if args.provider=="jev" else JEVSystemOneReward(args.model,cache=cache))
         _write_json(_version({"task":"j05_jev_rl","protocol":"judge-evaluation",**evaluate_judge(provider)},"j05-judge"),None); return 0
+    if args.command=="j05-protocol":
+        from jev_bench.tasks.j05_jev_rl import NativeReward, RuleReward, JEVOpenRouterReward, JEVSystemOneReward, JsonFileCache
+        from jev_bench.tasks.j05_protocol import run_protocol, write_label_corpus
+        seeds=tuple(int(x.strip()) for x in args.seeds.split(",") if x.strip())
+        if not seeds: raise SystemExit("--seeds must contain at least one integer")
+        if args.labels_output:
+            write_label_corpus(args.labels_output)
+        def factory():
+            cache=JsonFileCache(args.cache) if args.cache else None
+            return (NativeReward() if args.provider=="native" else RuleReward() if args.provider=="rules" else JEVOpenRouterReward(args.model,cache=cache) if args.provider=="jev" else JEVSystemOneReward(args.model,cache=cache))
+        _write_json(run_protocol(factory,seeds=seeds,episodes=args.episodes),None); return 0
     if args.command=="j05-run":
         from jev_bench.tasks.j05_jev_rl import NativeReward, RuleReward, JEVOpenRouterReward, JEVSystemOneReward, JsonFileCache, run_j05
         cache=JsonFileCache(args.cache) if args.cache else None
