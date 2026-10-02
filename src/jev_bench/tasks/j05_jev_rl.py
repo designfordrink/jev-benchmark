@@ -52,6 +52,33 @@ class RuleReward(NativeReward):
     name = "rules"
 
 
+class ConfidenceFallback:
+    """Use a primary judge, but fall back to rules below a confidence threshold."""
+    name = "confidence_fallback"
+
+    def __init__(self, primary: RewardProvider, fallback: RewardProvider | None = None, threshold: float = 0.60):
+        self.primary = primary
+        self.fallback = fallback or RuleReward()
+        self.threshold = threshold
+        self.fallback_count = 0
+
+    def judge(self, transition: Transition) -> RewardJudgment:
+        primary = self.primary.judge(transition)
+        if primary.abstain or primary.confidence < self.threshold:
+            self.fallback_count += 1
+            fallback = self.fallback.judge(transition)
+            return RewardJudgment(
+                reward=fallback.reward,
+                confidence=primary.confidence,
+                abstain=False,
+                source=f"{self.name}:{fallback.source}",
+                probabilities=primary.probabilities,
+                latency_ms=primary.latency_ms + fallback.latency_ms,
+                cached=primary.cached,
+            )
+        return primary
+
+
 class JsonFileCache:
     def __init__(self, path: str | Path):
         self.path = Path(path)
