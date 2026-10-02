@@ -6,6 +6,8 @@ on:
       - ".github/workflows/ns01-operating-point.yml"
       - "src/**"
       - "pyproject.toml"
+      - "scripts/**"
+      - "tests/**"
   workflow_dispatch:
 
 jobs:
@@ -50,7 +52,7 @@ jobs:
           path: results/ns01
           merge-multiple: true
       - name: Analyze operating points
-        run: python scripts/analyze_ns01.py --root results/ns01 --output results/ns01/operating-point-analysis.json
+        run: python scripts/analyze_ns01.py --root results/ns01 --output results/ns01/operating-point-analysis.json --profiles ultra-small,small-edge
       - uses: actions/upload-artifact@v4
         with:
           name: ns01-analysis
