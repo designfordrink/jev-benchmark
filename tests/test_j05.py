@@ -63,7 +63,7 @@ def test_confidence_fallback_replaces_abstention():
     provider = ConfidenceFallback(Abstaining(), threshold=0.6)
     result = provider.judge(adversarial_transitions()[0])
     assert result.abstain is False
-    assert result.reward == 0.0
+    assert result.reward == REWARD_LEVELS["wall"]
     assert provider.fallback_count == 1
 
 def test_systemone_state_does_not_contain_hidden_event():
