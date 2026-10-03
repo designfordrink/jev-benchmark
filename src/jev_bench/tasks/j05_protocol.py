@@ -20,7 +20,6 @@ def _transition_key(t) -> str:
             "state": t.state,
             "action": t.action,
             "next_state": t.next_state,
-            "event": t.event,
             "terminated": t.terminated,
         },
         sort_keys=True,

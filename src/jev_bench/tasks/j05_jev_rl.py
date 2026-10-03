@@ -91,7 +91,6 @@ class JsonFileCache:
             "state": transition.state,
             "action": transition.action,
             "next_state": transition.next_state,
-            "event": transition.event,
             "model": model,
             "prompt_version": prompt_version,
         }, sort_keys=True)
@@ -133,12 +132,11 @@ class JEVOpenRouterReward:
         return (
             "You are a reward judge for a deterministic gridworld. "
             "Return JSON only with probabilities for exactly these events: "
-            f"{', '.join(REWARD_LEVELS)}. Judge the outcome of the transition from "
-            "the observed state, action, next_state and termination flag. "
-            "Do not assume or receive a hidden event label. The observed transition is "
+            f"{', '.join(REWARD_LEVELS)}. Judge only the observed transition: "
             f"state={t.state}, action={t.action}, next_state={t.next_state}, "
             "terminated=" + str(t.terminated).lower() +
-            ". Probabilities must sum to 1."
+            ". Do not assume or receive a hidden event label. "
+            "Probabilities must sum to 1."
         )
 
     def judge(self, transition: Transition) -> RewardJudgment:
@@ -188,6 +186,138 @@ class JEVOpenRouterReward:
         return judgment
 
 
+
+class JEVSystemOneReward:
+    """Jev System One reward judge using OpenRouter's typed Decisions API."""
+
+    name = "jev_systemone"
+
+    def __init__(
+        self,
+        model: str = "typesafe/jev-1.13",
+        *,
+        api_key: str | None = None,
+        cache: JsonFileCache | None = None,
+        prompt_version: str = "j05-systemone-v1",
+        endpoint: str | None = None,
+        timeout_s: float = 60.0,
+        abstain_threshold: float = 0.60,
+    ):
+        self.model = model
+        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+        self.cache = cache
+        self.prompt_version = prompt_version
+        self.endpoint = endpoint or os.getenv(
+            "JEV_SYSTEMONE_URL",
+            "https://openrouter.ai/api/alpha/decisions",
+        )
+        self.timeout_s = timeout_s
+        self.abstain_threshold = abstain_threshold
+        self.calls = 0
+        self.cache_hits = 0
+
+    @staticmethod
+    def _state(t: Transition) -> dict[str, Any]:
+        return {
+            "state": t.state,
+            "action": t.action,
+            "next_state": t.next_state,
+            "terminated": t.terminated,
+        }
+
+    @staticmethod
+    def _questions() -> dict[str, Any]:
+        return {
+            "event": {
+                "type": "choice",
+                "instructions": (
+                    "Which outcome event best explains the observed transition? "
+                    "Use only the observed state, action, next_state, and terminated fields."
+                ),
+                "criteria": {
+                    "lava": "The transition enters a lava/hazard terminal state.",
+                    "timeout": "The transition ends because the episode reaches its time limit.",
+                    "wall": "The attempted movement is blocked by an obstacle/wall and the position does not change.",
+                    "boundary": "The attempted movement is blocked by the grid boundary and the position does not change.",
+                    "move": "A normal movement occurs without collecting the key or reaching the exit.",
+                    "key": "The agent reaches and collects the key during the transition.",
+                    "exit": "The agent reaches the exit and completes the task.",
+                },
+            }
+        }
+
+    def _cache_key(self, transition: Transition) -> str | None:
+        if not self.cache:
+            return None
+        return self.cache.key(transition, self.model, self.prompt_version)
+
+    def judge(self, transition: Transition) -> RewardJudgment:
+        if not self.api_key:
+            raise RuntimeError("OPENROUTER_API_KEY is required for provider=jev_systemone")
+
+        key = self._cache_key(transition)
+        if key and (hit := self.cache.get(key)) is not None:
+            self.cache_hits += 1
+            return RewardJudgment(**hit, cached=True)
+
+        started = time.perf_counter()
+        body = json.dumps({
+            "model": self.model,
+            "state": self._state(transition),
+            "questions": self._questions(),
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            self.endpoint,
+            data=body,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "jev-benchmark/0.1",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout_s) as response:
+                payload = json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:500]
+            raise RuntimeError(f"Jev System One HTTP {exc.code}: {detail}") from exc
+
+        answer = (payload.get("answers") or {}).get("event")
+        if not isinstance(answer, dict) or answer.get("type") != "choice":
+            raise ValueError("Jev System One returned no choice answer for event")
+
+        probabilities_raw = answer.get("probabilities")
+        if not isinstance(probabilities_raw, dict):
+            raise ValueError("Jev System One choice has no probabilities")
+
+        probs = {k: max(0.0, float(probabilities_raw.get(k, 0.0))) for k in REWARD_LEVELS}
+        total = sum(probs.values())
+        if not math.isfinite(total) or total <= 0:
+            raise ValueError("Jev System One returned invalid probabilities")
+        probs = {k: v / total for k, v in probs.items()}
+
+        choice = answer.get("choice")
+        if choice not in REWARD_LEVELS:
+            raise ValueError(f"Jev System One returned unknown choice: {choice!r}")
+
+        confidence = float(answer.get("confidence", max(probs.values())))
+        confidence = max(0.0, min(1.0, confidence))
+        judgment = RewardJudgment(
+            reward=REWARD_LEVELS[choice],
+            confidence=confidence,
+            abstain=confidence < self.abstain_threshold,
+            source=self.name,
+            probabilities=probs,
+            latency_ms=(time.perf_counter() - started) * 1000,
+        )
+        if key and self.cache:
+            cached_payload = {k: v for k, v in judgment.__dict__.items() if k != "cached"}
+            self.cache.put(key, cached_payload)
+        self.calls += 1
+        return judgment
+
+
 def independent_label(transition: Transition) -> float:
     return REWARD_LEVELS[transition.event]
 
@@ -199,7 +329,7 @@ def split_transition_corpus(rows: list[Transition] | None = None, holdout_fracti
     rows = list(rows if rows is not None else build_transition_corpus())
     train, holdout = [], []
     for t in rows:
-        raw = json.dumps({"state": t.state, "action": t.action, "next_state": t.next_state, "event": t.event}, sort_keys=True)
+        raw = json.dumps({"state": t.state, "action": t.action, "next_state": t.next_state, "terminated": t.terminated}, sort_keys=True)
         bucket = int(hashlib.sha256(raw.encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
         (holdout if bucket < holdout_fraction else train).append(t)
     if not train or not holdout:
