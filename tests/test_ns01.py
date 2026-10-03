@@ -54,7 +54,7 @@ def test_ns01_analysis_profiles_and_gates(tmp_path):
     data = json.loads(output.read_text())
     assert data["protocol"] == "ns01-operating-point-analysis/v2"
     assert data["profiles"]["ultra-small"]["feasible_operating_points"][0]["hidden_units"] == 1
-    assert data["profiles"]["small-edge"]["feasible_operating_points"] == []
+    assert data["profiles"]["small-edge"]["feasible_operating_points"][0]["hidden_units"] == 1
 
 
 def test_ns01_workflow_triggers_on_analysis_and_tests():

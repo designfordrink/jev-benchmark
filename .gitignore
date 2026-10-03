@@ -8,3 +8,8 @@ build/
 *.egg-info/
 results/
 artifacts/
+
+# Local secrets
+.env
+.env.*
+!.env.example

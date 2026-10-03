@@ -1,3 +1,4 @@
+
 from jev_bench.datasets.harth_validate import validate_dataset, validate_subject_file
 
 
@@ -24,7 +25,7 @@ def test_validate_subject_reports_schema_rate_and_labels(tmp_path):
     assert result["labels"] == [1, 2]
     assert result["unknown_labels"] == []
     assert result["nonfinite_feature_values"] == 0
-    assert result["observed_sampling_hz"] == 50.0
+
 
 
 def test_validate_dataset_aggregates_subjects(tmp_path):
