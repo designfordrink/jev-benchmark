@@ -27,10 +27,11 @@ PROFILES = {
 
 
 def _metric(run: dict[str, Any], key: str) -> float:
-    try:
-        return float(run["metrics"][key])
-    except KeyError as exc:
-        raise SystemExit(f"missing metric: {key}") from exc
+    for section in ("metrics", "model", "evaluation"):
+        value = run.get(section, {}).get(key)
+        if value is not None:
+            return float(value)
+    raise SystemExit(f"missing metric: {key}")
 
 
 def _load(root: str) -> tuple[list[dict], list[dict]]:
