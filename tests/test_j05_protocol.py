@@ -26,4 +26,8 @@ def test_multi_seed_protocol_is_deterministic():
     factory = NativeReward
     a = run_multi_seed(factory, seeds=(0, 1), episodes=10)
     b = run_multi_seed(factory, seeds=(0, 1), episodes=10)
+    # Timing is intentionally measured and therefore is not deterministic.
+    for result in (a, b):
+        for run in result["runs"]:
+            run.pop("wall_time_s", None)
     assert a == b
