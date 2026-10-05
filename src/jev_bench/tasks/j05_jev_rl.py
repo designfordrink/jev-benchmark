@@ -164,14 +164,15 @@ class JEVOpenRouterReward:
         self.cache_hits = 0
 
     def _prompt(self, t: Transition) -> str:
+        context = JEVSystemOneReward._state(t)
         return (
             "You are a reward judge for a deterministic gridworld. "
             "Return JSON only with probabilities for exactly these events: "
-            f"{', '.join(REWARD_LEVELS)}. Judge only the observed transition: "
-            f"state={t.state}, action={t.action}, next_state={t.next_state}, "
-            "terminated=" + str(t.terminated).lower() +
-            ". Do not assume or receive a hidden event label. "
-            "Probabilities must sum to 1."
+            f"{', '.join(REWARD_LEVELS)}. "
+            "Judge only the complete observable environment and transition context below. "
+            "The hidden event label, reference reward, and termination reason are not provided. "
+            "Do not invent hidden information. Probabilities must sum to 1.\n\n"
+            + json.dumps(context, sort_keys=True)
         )
 
     def judge(self, transition: Transition) -> RewardJudgment:
