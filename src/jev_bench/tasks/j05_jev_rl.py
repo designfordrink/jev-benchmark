@@ -48,8 +48,41 @@ class NativeReward:
         return RewardJudgment(REWARD_LEVELS[transition.event], 1.0, source=self.name)
 
 
-class RuleReward(NativeReward):
+class RuleReward:
+    """Independent deterministic rule judge using only observable transition data."""
+
     name = "rules"
+
+    def judge(self, transition: Transition) -> RewardJudgment:
+        try:
+            from jev_bench.envs.key_quest import Action, DELTAS, KeyQuestEnv
+
+            env = KeyQuestEnv()
+            x, y, _ = transition.state
+            action = Action(int(transition.action))
+            dx, dy = DELTAS[action]
+            candidate = (x + dx, y + dy)
+            if not (0 <= candidate[0] < env.width and 0 <= candidate[1] < env.height):
+                event = "boundary"
+            elif candidate in env.walls:
+                event = "wall"
+            elif transition.next_state[:2] in env.lava:
+                event = "lava"
+            elif (
+                transition.state[2] == 0
+                and transition.next_state[2] == 1
+                and transition.next_state[:2] == env.key
+            ):
+                event = "key"
+            elif transition.next_state[:2] == env.exit and transition.next_state[2] == 1 and transition.terminated:
+                event = "exit"
+            elif transition.terminated and transition.step >= env.max_steps:
+                event = "timeout"
+            else:
+                event = "move"
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"cannot classify transition with rules: {transition!r}") from exc
+        return RewardJudgment(REWARD_LEVELS[event], 1.0, source=self.name)
 
 
 class ConfidenceFallback:
@@ -91,6 +124,8 @@ class JsonFileCache:
             "state": transition.state,
             "action": transition.action,
             "next_state": transition.next_state,
+            "terminated": transition.terminated,
+            "step": transition.step,
             "model": model,
             "prompt_version": prompt_version,
         }, sort_keys=True)
@@ -198,7 +233,7 @@ class JEVSystemOneReward:
         *,
         api_key: str | None = None,
         cache: JsonFileCache | None = None,
-        prompt_version: str = "j05-systemone-v1",
+        prompt_version: str = "j05-systemone-v2-state-aware",
         endpoint: str | None = None,
         timeout_s: float = 60.0,
         abstain_threshold: float = 0.60,
@@ -218,11 +253,46 @@ class JEVSystemOneReward:
 
     @staticmethod
     def _state(t: Transition) -> dict[str, Any]:
+        """Return the complete observable context; never include the hidden event label."""
         return {
-            "state": t.state,
-            "action": t.action,
-            "next_state": t.next_state,
-            "terminated": t.terminated,
+            "environment": {
+                "type": "deterministic_gridworld",
+                "width": 5,
+                "height": 5,
+                "coordinate_system": {
+                    "origin": [0, 0],
+                    "x_direction": "right",
+                    "y_direction": "up",
+                },
+                "walls": [[1, 1], [1, 2], [3, 2], [3, 3]],
+                "hazards": [[2, 3]],
+                "key_location": [2, 2],
+                "exit_location": [4, 4],
+                "max_steps": 40,
+            },
+            "transition": {
+                "state": {
+                    "position": [t.state[0], t.state[1]],
+                    "has_key": bool(t.state[2]),
+                    "step": t.step,
+                },
+                "action": {
+                    "id": t.action,
+                    "name": ("UP", "RIGHT", "DOWN", "LEFT")[t.action],
+                    "delta": [
+                        (0, 1),
+                        (1, 0),
+                        (0, -1),
+                        (-1, 0),
+                    ][t.action],
+                },
+                "next_state": {
+                    "position": [t.next_state[0], t.next_state[1]],
+                    "has_key": bool(t.next_state[2]),
+                    "step": t.step,
+                },
+                "terminated": t.terminated,
+            },
         }
 
     @staticmethod
@@ -232,16 +302,17 @@ class JEVSystemOneReward:
                 "type": "choice",
                 "instructions": (
                     "Which outcome event best explains the observed transition? "
-                    "Use only the observed state, action, next_state, and terminated fields."
+                    "Use the complete observable environment and transition context. "
+                    "Do not infer or use a hidden event label, reference reward, or termination reason."
                 ),
                 "criteria": {
-                    "lava": "The transition enters a lava/hazard terminal state.",
-                    "timeout": "The transition ends because the episode reaches its time limit.",
-                    "wall": "The attempted movement is blocked by an obstacle/wall and the position does not change.",
-                    "boundary": "The attempted movement is blocked by the grid boundary and the position does not change.",
-                    "move": "A normal movement occurs without collecting the key or reaching the exit.",
-                    "key": "The agent reaches and collects the key during the transition.",
-                    "exit": "The agent reaches the exit and completes the task.",
+                    "lava": "The agent's resulting position is a hazard cell and the transition terminates.",
+                    "timeout": "The transition terminates because the step limit is reached, without another terminal event explaining the termination.",
+                    "wall": "The requested movement enters a wall cell, so the agent remains in the same position.",
+                    "boundary": "The requested movement leaves the grid, so the agent remains in the same position.",
+                    "move": "The agent changes position without collecting the key, entering a hazard, or completing the task.",
+                    "key": "The agent reaches the key location and changes has_key from false to true.",
+                    "exit": "The agent reaches the exit location while carrying the key and the task terminates.",
                 },
             }
         }
