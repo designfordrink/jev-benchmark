@@ -19,10 +19,30 @@ JEV does **not** choose the action.
 | Provider | Purpose |
 |---|---|
 | native | deterministic environment reward; reference baseline |
-| rules | hand-written rule judge; interpretable baseline |
+| rules | independent deterministic rule judge using only observable transition data |
 | jev | OpenRouter-backed JEV-style probabilistic judge |
+| jev_systemone | OpenRouter Decisions API judge with typed choice output |
 
 The jev adapter expects OPENROUTER_API_KEY. The model is supplied explicitly with --model.
+
+## State-aware JEV context
+
+JEV-facing instructions and choice descriptions are English. The judge receives the complete observable task context required to explain the transition:
+
+- 5×5 grid dimensions and coordinate convention;
+- wall cells and hazard cells;
+- key and exit locations;
+- maximum step count;
+- current position, key possession and current step;
+- action id, direction name and movement delta;
+- next position, key possession and next step;
+- termination flag.
+
+The judge does **not** receive the hidden event label, reference reward, or termination reason.
+
+This distinction is essential for J05: wall vs boundary, lava, exit, and timeout cannot be reliably identified from the transition tuple alone.
+
+The System One prompt version is now j05-systemone-v2-state-aware, and the cache key includes every observable transition field including terminated and step.
 
 ## Judge evaluation
 
@@ -64,6 +84,14 @@ Do not collapse these into one score.
 A high RL success rate alone does not establish that JEV is a better reward mechanism. The tested chain is:
 
 **judge quality → reward signal quality → learning quality**, under the same environment and learner.
+
+## Baseline independence
+
+RuleReward is an independent deterministic judge. It reconstructs the event from the observable transition and Key Quest rules instead of reading transition.event. This makes the comparison meaningful:
+
+**native ground truth → rules judge → JEV judge**
+
+The event field remains available internally only for generating independent labels and checking the environment.
 
 ## Next research increment
 

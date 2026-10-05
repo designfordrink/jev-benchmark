@@ -29,6 +29,7 @@ class Transition:
     next_state: tuple[int, int, int]
     event: str
     terminated: bool
+    step: int = 0
 
 
 class KeyQuestEnv:
@@ -86,4 +87,4 @@ class KeyQuestEnv:
             event, self.done = "exit", True
         elif self.steps >= self.max_steps:
             event, self.done = "timeout", True
-        return Transition(old, int(act), self.state, event, self.done)
+        return Transition(old, int(act), self.state, event, self.done, self.steps)
