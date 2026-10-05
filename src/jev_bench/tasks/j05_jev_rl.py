@@ -62,22 +62,31 @@ class RuleReward:
             action = Action(int(transition.action))
             dx, dy = DELTAS[action]
             candidate = (x + dx, y + dy)
-            if not (0 <= candidate[0] < env.width and 0 <= candidate[1] < env.height):
-                event = "boundary"
-            elif candidate in env.walls:
-                event = "wall"
-            elif transition.next_state[:2] in env.lava:
-                event = "lava"
-            elif (
+            blocked_by_boundary = not (0 <= candidate[0] < env.width and 0 <= candidate[1] < env.height)
+            blocked_by_wall = not blocked_by_boundary and candidate in env.walls
+            entered_lava = transition.next_state[:2] in env.lava
+            collected_key = (
                 transition.state[2] == 0
                 and transition.next_state[2] == 1
                 and transition.next_state[:2] == env.key
-            ):
+            )
+            completed_exit = (
+                transition.next_state[:2] == env.exit
+                and transition.next_state[2] == 1
+                and transition.terminated
+            )
+            if entered_lava:
+                event = "lava"
+            elif collected_key:
                 event = "key"
-            elif transition.next_state[:2] == env.exit and transition.next_state[2] == 1 and transition.terminated:
+            elif completed_exit:
                 event = "exit"
             elif transition.terminated and transition.step >= env.max_steps:
                 event = "timeout"
+            elif blocked_by_boundary:
+                event = "boundary"
+            elif blocked_by_wall:
+                event = "wall"
             else:
                 event = "move"
         except (KeyError, TypeError, ValueError) as exc:
@@ -275,7 +284,7 @@ class JEVSystemOneReward:
                 "state": {
                     "position": [t.state[0], t.state[1]],
                     "has_key": bool(t.state[2]),
-                    "step": t.step,
+                    "step": max(0, t.step - 1),
                 },
                 "action": {
                     "id": t.action,
