@@ -95,7 +95,7 @@ def test_systemone_state_does_not_contain_hidden_event():
     assert state["transition"]["state"]["step"] == 11
     assert state["transition"]["next_state"]["step"] == 12
     assert state["transition"]["action"]["name"] == "RIGHT"
-    assert state["transition"]["action"]["delta"] == [1, 0]
+    assert state["transition"]["action"]["delta"] == (1, 0)
     assert state["transition"]["state"]["position"] == list(t.state[:2])
     assert state["transition"]["next_state"]["position"] == list(t.next_state[:2])
 
