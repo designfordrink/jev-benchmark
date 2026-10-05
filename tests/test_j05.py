@@ -24,6 +24,19 @@ def test_native_and_rules_have_independent_ground_truth():
         assert result["exact_reward_rate"] == 1.0
 
 
+def test_rules_do_not_depend_on_hidden_event_label():
+    t = adversarial_transitions()[0]
+    relabeled = Transition(t.state, t.action, t.next_state, "move", t.terminated, t.step)
+    assert RuleReward().judge(t).reward == RuleReward().judge(relabeled).reward
+
+
+def test_transition_records_observable_step():
+    env = KeyQuestEnv()
+    env.reset()
+    t = env.step(1)
+    assert t.step == 1
+
+
 def test_cache_roundtrip(tmp_path):
     cache = JsonFileCache(tmp_path / "j05-cache.json")
     assert cache.get("missing") is None
@@ -68,10 +81,23 @@ def test_confidence_fallback_replaces_abstention():
 
 def test_systemone_state_does_not_contain_hidden_event():
     t = adversarial_transitions()[0]
+    t = Transition(t.state, t.action, t.next_state, t.event, t.terminated, 12)
     state = JEVSystemOneReward._state(t)
     assert "event" not in state
-    assert state["state"] == t.state
-    assert state["next_state"] == t.next_state
+    assert "reward" not in state
+    assert "termination_reason" not in state
+    assert state["environment"]["width"] == 5
+    assert state["environment"]["height"] == 5
+    assert state["environment"]["walls"] == [[1, 1], [1, 2], [3, 2], [3, 3]]
+    assert state["environment"]["hazards"] == [[2, 3]]
+    assert state["environment"]["key_location"] == [2, 2]
+    assert state["environment"]["exit_location"] == [4, 4]
+    assert state["transition"]["state"]["step"] == 11
+    assert state["transition"]["next_state"]["step"] == 12
+    assert state["transition"]["action"]["name"] == "RIGHT"
+    assert state["transition"]["action"]["delta"] == [1, 0]
+    assert state["transition"]["state"]["position"] == list(t.state[:2])
+    assert state["transition"]["next_state"]["position"] == list(t.next_state[:2])
 
 
 def test_systemone_questions_are_fixed_choice_contract():
@@ -81,8 +107,20 @@ def test_systemone_questions_are_fixed_choice_contract():
 
 
 def test_cache_key_does_not_depend_on_hidden_event():
+    t = Transition(*adversarial_transitions()[0].__dict__.values())
+    alternative = Transition(t.state, t.action, t.next_state, "move", t.terminated, t.step)
+    assert JsonFileCache.key(t, "typesafe/jev-1.13", "j05-systemone-v2-state-aware") == JsonFileCache.key(
+        alternative, "typesafe/jev-1.13", "j05-systemone-v2-state-aware"
+    )
+
+
+def test_cache_key_includes_observable_termination_and_step():
     t = adversarial_transitions()[0]
-    alternative = Transition(t.state, t.action, t.next_state, "move", t.terminated)
-    assert JsonFileCache.key(t, "typesafe/jev-1.13", "j05-systemone-v1") == JsonFileCache.key(
-        alternative, "typesafe/jev-1.13", "j05-systemone-v1"
+    terminated = Transition(t.state, t.action, t.next_state, t.event, not t.terminated, t.step)
+    later = Transition(t.state, t.action, t.next_state, t.event, t.terminated, t.step + 1)
+    assert JsonFileCache.key(t, "typesafe/jev-1.13", "j05-systemone-v2-state-aware") != JsonFileCache.key(
+        terminated, "typesafe/jev-1.13", "j05-systemone-v2-state-aware"
+    )
+    assert JsonFileCache.key(t, "typesafe/jev-1.13", "j05-systemone-v2-state-aware") != JsonFileCache.key(
+        later, "typesafe/jev-1.13", "j05-systemone-v2-state-aware"
     )
