@@ -12,7 +12,7 @@
       -> reward
       -> RL update
 
-**Критическое требование:** hidden event не передаётся Jev. Jev получает только state, action, next_state, terminated.
+**Критическое требование:** hidden event не передаётся Jev. Jev получает полный observable context: environment geometry + state/action/next_state/terminated/step.
 
 ## 1. Требования
 
@@ -134,10 +134,14 @@
 
 Observable input:
 
-    state
-    action
-    next_state
-    terminated
+    environment:
+      width, height, coordinate system
+      walls, hazards, key_location, exit_location, max_steps
+    transition:
+      state: position, has_key, step
+      action: id, name, delta
+      next_state: position, has_key, step
+      terminated
 
 Choice criteria:
 
@@ -149,7 +153,7 @@ Choice criteria:
     key
     exit
 
-**Hidden event не должен присутствовать в prompt/request.**
+**Hidden event, reference reward и termination reason не должны присутствовать в prompt/request.**
 
 Например, нельзя передавать:
 
