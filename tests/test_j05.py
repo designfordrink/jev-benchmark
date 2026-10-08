@@ -17,6 +17,10 @@ def test_transition_corpus_is_reproducible():
     assert build_transition_corpus() == build_transition_corpus()
 
 
+def test_transition_corpus_contains_timeout():
+    assert any(t.event == "timeout" and t.step == 40 for t in build_transition_corpus())
+
+
 def test_native_and_rules_have_independent_ground_truth():
     for provider in (NativeReward(), RuleReward()):
         result = evaluate_judge(provider)
@@ -65,7 +69,12 @@ def test_adversarial_cases_have_explicit_labels():
 
 def test_representation_variants_preserve_semantics():
     for t in adversarial_transitions():
-        assert all(v.event == t.event and v.next_state == t.next_state for v in representation_variants(t))
+        assert all(
+            v.event == t.event
+            and v.next_state == t.next_state
+            and v.step == t.step
+            for v in representation_variants(t)
+        )
 
 
 def test_confidence_fallback_replaces_abstention():
