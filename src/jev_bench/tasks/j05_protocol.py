@@ -21,6 +21,7 @@ def _transition_key(t) -> str:
             "action": t.action,
             "next_state": t.next_state,
             "terminated": t.terminated,
+            "step": t.step,
         },
         sort_keys=True,
     )
@@ -40,6 +41,7 @@ def write_label_corpus(path: str | Path) -> dict[str, Any]:
                 "next_state": list(t.next_state),
                 "event": t.event,
                 "terminated": t.terminated,
+                "step": t.step,
                 "reward": independent_label(t),
                 "key": _transition_key(t),
             }
