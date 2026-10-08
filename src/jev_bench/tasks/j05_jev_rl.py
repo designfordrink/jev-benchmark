@@ -410,7 +410,16 @@ def split_transition_corpus(rows: list[Transition] | None = None, holdout_fracti
     rows = list(rows if rows is not None else build_transition_corpus())
     train, holdout = [], []
     for t in rows:
-        raw = json.dumps({"state": t.state, "action": t.action, "next_state": t.next_state, "terminated": t.terminated}, sort_keys=True)
+        raw = json.dumps(
+            {
+                "state": t.state,
+                "action": t.action,
+                "next_state": t.next_state,
+                "terminated": t.terminated,
+                "step": t.step,
+            },
+            sort_keys=True,
+        )
         bucket = int(hashlib.sha256(raw.encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
         (holdout if bucket < holdout_fraction else train).append(t)
     if not train or not holdout:
@@ -426,6 +435,7 @@ def adversarial_transitions() -> list[Transition]:
         Transition((2, 2, 1), 1, (3, 2, 1), "wall", False),
         Transition((2, 3, 0), 0, (2, 4, 0), "move", False),
         Transition((2, 2, 1), 0, (2, 3, 1), "lava", True),
+        Transition((0, 0, 0), 1, (1, 0, 0), "timeout", True, 40),
     ]
 
 
@@ -433,12 +443,19 @@ def representation_variants(transition: Transition) -> list[Transition]:
     """Semantically identical transition variants for representation robustness."""
     return [
         transition,
-        Transition(transition.state, transition.action, transition.next_state, transition.event, transition.terminated),
+        Transition(
+            transition.state,
+            transition.action,
+            transition.next_state,
+            transition.event,
+            transition.terminated,
+            transition.step,
+        ),
     ]
 
 
 def build_transition_corpus() -> list[Transition]:
-    """Enumerate a fixed, reproducible corpus without training an RL agent."""
+    """Enumerate a fixed corpus, including non-terminal and timeout transitions."""
     env = KeyQuestEnv()
     rows: list[Transition] = []
     for x in range(env.width):
@@ -450,6 +467,13 @@ def build_transition_corpus() -> list[Transition]:
                     probe = KeyQuestEnv()
                     probe.pos, probe.has_key = (x, y), bool(has_key)
                     rows.append(probe.step(action))
+    # The one-step enumeration cannot naturally produce a timeout. Add a
+    # deterministic terminal transition at the step limit so timeout is part
+    # of the judge-quality corpus rather than only an adversarial fixture.
+    timeout_probe = KeyQuestEnv()
+    timeout_probe.pos = (0, 0)
+    timeout_probe.steps = timeout_probe.max_steps - 1
+    rows.append(timeout_probe.step(1))
     return rows
 
 
